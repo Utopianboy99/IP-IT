@@ -1,0 +1,135 @@
+.signup-container {
+  display: flex;
+  min-height: 100vh;
+  font-family: "Segoe UI", sans-serif;
+  animation: fadeIn 1s ease-in;
+}
+
+.signup-left {
+  flex: 1;
+  background: linear-gradient(135deg, #4e54c8, #8f94fb);
+  color: white;
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  animation: slideInLeft 1.2s ease forwards;
+}
+
+.signup-left h1 {
+  font-size: 2.8rem;
+  margin-bottom: 20px;
+}
+
+.signup-left p {
+  font-size: 1.2rem;
+  margin-bottom: 30px;
+}
+
+.signup-left ul {
+  list-style: none;
+  padding: 0;
+  font-size: 1rem;
+}
+
+.signup-left li {
+  margin: 10px 0;
+}
+
+.signup-right {
+  flex: 1;
+  background-color: #f9f9f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: slideInRight 1.2s ease forwards;
+}
+
+.signup-form {
+  background: white;
+  padding: 40px;
+  width: 80%;
+  max-width: 400px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  animation: popIn 1.4s ease-in-out;
+}
+
+.signup-form h2 {
+  margin-bottom: 20px;
+}
+
+.signup-form input {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.interests label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.signup-form button {
+  width: 100%;
+  background-color: #4e54c8;
+  color: white;
+  padding: 14px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.signup-form button:hover {
+  background-color: #3c41a1;
+}
+
+/* Animations */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(60px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    background-color: #000;
+  }
+  to {
+    background-color: white;
+  }
+}
