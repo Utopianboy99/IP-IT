@@ -1,0 +1,53 @@
+.hero {
+    display: flex;
+    justify-content: space-between;
+    padding: 4rem 2rem;
+}
+
+.hero-left {
+    max-width: 50%;
+}
+
+.hero-left h1 {
+    font-size: 3rem;
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+.hero-left p {
+    margin: 1rem 0;
+    font-size: 1rem;
+    color: #555;
+}
+
+.hero-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.btn-explore {
+    background: black;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-learn {
+    background: white;
+    color: black;
+    padding: 0.75rem 1.5rem;
+    border: 1px solid black;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.hero-right .image-placeholder {
+    background-image: url(/Cognition_Berries/public/);
+    background-size: cover;
+    width: 500px;
+    height: 500px;
+    border: 1px solid #aaa;
+}

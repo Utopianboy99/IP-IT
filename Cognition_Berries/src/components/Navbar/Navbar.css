@@ -1,0 +1,80 @@
+/* Navbar CSS */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #ccc;
+}
+
+.logo {
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nav-links li a {
+  text-decoration: none;
+  color: black;
+  font-weight: 500;
+}
+
+.auth-buttons a {
+  margin-left: 1rem;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.user-icon {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 0.5rem;
+}
+
+.user-icon img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.user-icon span {
+  font-weight: 600;
+  color: black;
+}
+
+.auth-buttons a,
+.nav-button {
+  background-color: black;
+  color: white;
+  padding: 0.5rem 1rem;
+  margin-left: 0.5rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: color 0.3s ease;
+}
+
+.nav-button:hover {
+  color: green;
+}
+
+.logout-btn:hover {
+  color: red;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-greeting {
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
