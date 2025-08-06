@@ -3,6 +3,7 @@ const express = require('express');
 const { MongoClient } = require('mongodb');
 const dotenv = require('dotenv');
 const base64 = require('base-64');
+const multer = require('multer')
 const cors = require("cors");
 
 
@@ -57,13 +58,29 @@ async function basicAuth(req, res, next) {
 
 // --- Apply middleware before routes ---
 
-app.use(basicAuth);
 
+const storage = multer.diskStorage({
+  destination: './uploads/',
+  filename: (req, file, cb) =>
+    cb(null, `${Date.now()}-${file.originalname}`),
+});
+
+const upload = multer({ storage });
+
+app.post('/api/upload-profile', upload.single('profilePicture'), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
+  const imageUrl = `http://localhost:3000/uploads/${req.file.filename}`;
+  return res.status(200).json({ imageUrl });
+});
+
+app.use('/uploads', express.static('uploads'));
+
+app.use(basicAuth);
 
 // === USERS ===
 app.post('/users', async (req, res) => {
+  const user = req.body;
   try {
-    const user = req.body;
     user.password = base64.encode(user.password);
     const result = await db.collection('Users').insertOne(user);
     res.status(201).json(result.ops ? result.ops[0] : user);
@@ -74,6 +91,35 @@ app.post('/users', async (req, res) => {
     res.status(500).json({ error: 'Failed to create user' });
   }
 });
+
+app.get('/protected', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return res.status(401).json({ error: 'Missing Authorization header' });
+  }
+
+  try {
+    const encoded = authHeader.split(' ')[1];
+    const decoded = Buffer.from(encoded, 'base64').toString('ascii'); // e.g., "user@example.com:password123"
+    const [email, password] = decoded.split(':');
+
+    const user = await db.collection('Users').findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid user' });
+    }
+
+   if (base64.decode(user.password) !== password) {
+  return res.status(401).json({ error: 'Invalid password' });
+}
+
+    res.json({ message: 'Access granted' });
+  } catch (err) {
+    console.error('Error during auth:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 app.get('/users', async (req, res) => {
   try {

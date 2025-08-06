@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+:root {
+  --lime: #32cd32;
+  --bg: #f5f7fa;
+  --card-bg: #ffffff;
+  --text: #1c1c1c;
+  --muted: #888;
+  --radius: 16px;
+  --shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  background-color: var(--bg);
+}
+
+.dash-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 200px;
+  background: #fff;
+  padding: 1.5rem;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.03);
+}
+
+.sidebar .logo {
+  font-weight: bold;
+  margin-bottom: 2rem;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar li {
+  margin-bottom: 1.2rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.sidebar li:hover {
+  color: var(--lime);
+}
+
+.dashboard {
+  flex: 1;
+  padding: 2rem;
+}
+
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.user-greeting h1 {
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+.user-greeting p {
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+
+.profile-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.username {
+  font-weight: 600;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.card {
+  background: var(--card-bg);
+  padding: 1.3rem;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.card h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.card p {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0.2rem 0 0;
+}
+
+.icon {
+  font-size: 1.8rem;
+  color: var(--lime);
+}
+
+.recent-activity {
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.recent-activity ul {
+  padding-left: 1.2rem;
+  margin: 1rem 0;
+  line-height: 1.8;
+  color: var(--text);
+}
+
+.lime-btn {
+  background: var(--lime);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.lime-btn:hover {
+  background: #28b428;
+}
+
+@media (max-width: 768px) {
+  .dash-layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+  }
+
+  .dashboard {
+    padding: 1rem;
+  }
+}
