@@ -1,0 +1,88 @@
+/* Navbar Layout */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+  /* border:1px solid red; */
+  height:8vh;
+}
+
+.nav-links {
+  margin:0px;
+  padding:0px;
+  width:30%;
+  /* border:1px solid red; */
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 15px;
+  height:90%;
+}
+
+.nav-links li{
+  list-style-type: none;
+}
+
+.nav-links a{
+  color:black;
+  /* background-color: lime; */
+  text-decoration: none;
+}
+
+.auth-buttons, .user-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-menu{
+  display: flex;
+}
+
+.cart-icon {
+  color: black;
+}
+
+.avatar-container {
+  display: flex;
+  align-items: center;
+}
+
+/* Sidebar Styles */
+.sidebar {
+  position: fixed;
+  top: 0;
+  right: -300px; /* hidden initially */
+  width: 250px;
+  height: 100%;
+  background: white;
+  box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+  transition: right 0.3s ease;
+  padding: 1rem;
+  z-index: 999;
+}
+
+.sidebar.open {
+  right: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.avatar-wrapper {
+  /* border:1px solid red; */
+  cursor: pointer;
+}
+
+.cart-icon {
+  font-size: 1.5rem;
+  margin-right: 1rem;
+  text-decoration: none;
+}
