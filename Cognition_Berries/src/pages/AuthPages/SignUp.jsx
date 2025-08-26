@@ -31,14 +31,12 @@ const SignupPage = () => {
 
     const data = await res.json();
     if (res.ok) {
-      localStorage.setItem('user', JSON.stringify({
-        name: formData.name,
-        // avatar: 'path-to-avatar.jpg'
-      }));
-      localStorage.setItem('auth', true);
+      // Store user and token in localStorage
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token); // Store token
 
       alert('Signup successful!');
-      navigate('/');
+      navigate('/home');
     } else {
       alert(data.message || 'Signup failed.');
     }

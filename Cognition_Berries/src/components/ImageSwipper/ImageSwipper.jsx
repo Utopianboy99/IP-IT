@@ -1,35 +1,57 @@
-// components/ImageSwiper.jsx
-import React from 'react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import 'swiper/swiper-bundle.css';  // Import swiper styles
-import 'swiper/css';
+import React from "react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination, Autoplay } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
+import './imageSwipper.css'
 
-
-const ImageSwiper = () => {
-  const images = [
-    '/images/image1.jpg',  // Add the paths to your images
-    '/images/image2.jpg',
-    '/images/image3.jpg',
-    '/images/image4.jpg',
-    '/images/image5.jpg',
-    '/images/image6.jpg'
-  ];
-
+const ImageSwipper = () => {
   return (
-    <div className="swiper-container">
-      <div className="logo">
-        <img src="/logo.png" alt="Logo" />
-        <p>Invest in yourself. Start your financial journey today.</p>
-      </div>
-      <Swiper spaceBetween={50} slidesPerView={3} loop={true}>
-        {images.map((image, index) => (
-          <SwiperSlide key={index}>
-            <img src={image} alt={`Slide ${index + 1}`} className="swiper-image" />
-          </SwiperSlide>
-        ))}
-      </Swiper>
-    </div>
+    <Swiper
+      modules={[Pagination, Autoplay]}
+      pagination={{ clickable: true }}
+      autoplay={{ delay: 4500, disableOnInteraction: false }}
+      loop
+      className="cb-swiper"
+    >
+      <SwiperSlide>
+        <div
+          className="cb-slide"
+          style={{ backgroundImage: "url('/Reflective-Pendant-Light-in-Study-Room.png')" }}
+        >
+          <div className="cb-scrim" />
+          <div className="cb-cta">
+            <p>Building Knowledge</p>
+            <p>Creating Bright Futures</p>
+          </div>
+        </div>
+      </SwiperSlide>
+      <SwiperSlide>
+        <div
+          className="cb-slide"
+          style={{ backgroundImage: "url('/Reflective-Pendant-Light-in-Study-Room.png')" }}
+        >
+          <div className="cb-scrim" />
+          <div className="cb-cta">
+            <p>Learn Smarter</p>
+            <p>Invest with Confidence</p>
+          </div>
+        </div>
+      </SwiperSlide>
+      <SwiperSlide>
+        <div
+          className="cb-slide"
+          style={{ backgroundImage: "url('/Reflective-Pendant-Light-in-Study-Room.png')" }}
+        >
+          <div className="cb-scrim" />
+          <div className="cb-cta">
+            <p>Practical Lessons</p>
+            <p>Real‑World Skills</p>
+          </div>
+        </div>
+      </SwiperSlide>
+    </Swiper>
   );
-};
+}
 
-export default ImageSwiper;
+export default ImageSwipper

@@ -1,0 +1,107 @@
+
+
+.main-block{
+    width:100vw;
+    height:350vh;
+    /* border:1px solid red; */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+}
+
+.sec-box{
+    width:95%;
+    height:24%;
+    /* border:1px solid red; */
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+}
+
+.in-block{
+    width: 45%;
+    height:90%;
+    /* border:1px solid red; */
+}
+
+.blk1-1{
+    text-align: left;
+}
+
+.blk1-1 p, h1{
+    /* border:1px solid red; */
+    text-align: left;
+}
+
+.blk1-1 h1{
+    font-size: 50px;
+}
+
+
+.blk1-2 p{
+    margin:15px 5px;
+    /* border:1px solid red; */
+    width:90%;
+    text-align: left;
+    font-size: 18px;
+}
+
+.abt-btns{
+    /* border:1px solid red; */
+    width:25%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height:15%;
+}
+
+.abt-btns button{
+    padding:5px 15px;
+}
+
+.abt-btns-blk-1{
+    margin-top: 100px
+}
+
+.blk2-1{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.blk2-1 h1,p {
+    margin:5px;
+    text-align: left;
+}
+
+.blk2-1 h1{
+    margin-bottom: 45px;
+}
+
+.blk3-1{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-blk{
+    display: flex;
+    align-items: center;
+    /* border:1px solid red; */
+    margin-top:40px;
+    justify-content: space-between;
+    width:100%;
+    height:30%
+}
+
+.i-Blocks{
+    /* border:1px solid red; */
+    width:50%;
+}
+
+.abt-btns-blk-2{
+    width:30%;
+}

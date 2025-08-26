@@ -1,0 +1,58 @@
+.feedback-container {
+  text-align: center;
+  padding: 2rem;
+}
+
+.review-list{
+  display: flex;
+}
+
+.sub-text {
+  margin-bottom: 1rem;
+  color: #666;
+}
+
+.review-card {
+  background: white;
+  padding: 1.5rem;
+  margin: auto;
+  width: 300px;
+  border-radius: 8px;
+  box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+}
+
+.stars {
+  font-size: 1.5rem;
+  color: gold;
+}
+
+.star {
+  color: lightgray;
+}
+
+.star.filled {
+  color: gold;
+}
+
+.comment {
+  font-style: italic;
+  margin: 1rem 0;
+}
+
+.reviewer strong {
+  display: block;
+}
+
+.nav-buttons button {
+  margin: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: #333;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.nav-buttons button:hover {
+  background: #555;
+}

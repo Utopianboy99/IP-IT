@@ -13,6 +13,10 @@
   justify-content: center;
 }
 
+.swiper-block{
+  height:100%;
+}
+
 .left-pane h1 {
   font-size: 3rem;
   margin-bottom: 1rem;
