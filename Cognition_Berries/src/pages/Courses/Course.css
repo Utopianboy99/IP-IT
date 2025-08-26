@@ -1,0 +1,302 @@
+/* General page layout */
+body {
+  font-family: "Inter", sans-serif;
+  background: #fff;
+  color: #222;
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.part1{
+  /* border:1px solid red; */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height:40vh;
+}
+
+.part2{
+  /* border:1px solid red; */
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  height:90vh;
+  justify-content: center;
+}
+
+.part2 h2{
+  margin-bottom: 40px ;
+  /* border:1px solid red; */
+  height:15%;
+  width:38%;
+}
+
+.part2-1{
+  /* border:1px solid red; */
+  width:100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height:75%
+}
+
+.part2-1 div{
+  border-radius: 20px;
+  /* border:1px solid black; */
+  height:100%;
+  width:30%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* justify-content: center; */
+}
+
+.crs-img{
+  width:90%;
+  height:40%;
+  /* border:1px solid red; */
+  margin-bottom: 30px;
+}
+
+.part2-1 div p{
+  text-align: center;
+  /* border:1px solid red; */
+  width:80%;
+  margin: 20px 0px 35px;
+}
+
+p {
+  color: #555;
+  font-size: 0.95rem;
+}
+
+/* Page title section */
+.course-display > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* border:1px solid red; */
+  margin: 30px 0; 
+  padding: 0 20px;
+}
+
+.course-display h1 {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.course-display p {
+  font-size: 1rem;
+  color: #666;
+}
+
+/* Dropdown (sort) */
+#filter-drp-dwm {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+/* Layout for filter + course cards */
+.course-display > div:last-child {
+  display: flex;
+  gap: 30px;
+  /* border:1px solid red; */
+  padding: 0 20px;
+}
+
+/* Sidebar Filters */
+aside {
+  flex: 0 0 250px;
+  border-right: 1px solid #eee;
+  padding-right: 20px;
+}
+
+#search-input {
+  width: 90%;
+  padding: 10px 12px;
+  margin-bottom: 20px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+aside h2 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+aside hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 15px 0;
+  /* border:1px solid red; */
+}
+
+aside select {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* Courses Grid */
+.course-display > div:last-child > div {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  /* border:1px solid lime; */
+}
+
+
+.tilted-card-figure {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  perspective: 800px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* border:1px solid red; */
+}
+
+.tilted-card-mobile-alert {
+  position: absolute;
+  /* border:1px solid red; */
+  top: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .tilted-card-mobile-alert {
+    display: block;
+  }
+  .tilted-card-caption {
+    display: none;
+  }
+}
+
+.tilted-card-inner {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.tilted-card-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  object-fit: cover;
+  border-radius: 15px;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.tilted-card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  will-change: transform;
+  transform: translateZ(30px);
+}
+
+.tilted-card-caption {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 4px;
+  background-color: #fff;
+  padding: 4px 10px;
+  font-size: 10px;
+  color: #2d2d2d;
+  opacity: 0;
+  z-index: 3;
+}
+/* Wrapper */
+.tilted-card-figure {
+  position: relative;
+  perspective: 1000px;
+  margin: 0;
+}
+
+/* Card inner container */
+.tilted-card-inner {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Image */
+.tilted-card-img {
+  object-fit: cover;
+  display: block;
+  border-radius: 14px 14px 0 0;
+}
+
+/* Overlay */
+.tilted-card-overlay {
+  padding: 14px;
+  background: #fff;
+  text-align: left;
+}
+
+.course-overlay h3 {
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+}
+
+.course-overlay p {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+/* Level Tag */
+.course-level {
+  display: inline-block;
+  background: #111;
+  color: #fff;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  border-radius: 20px;
+  padding: 3px 10px;
+  margin-bottom: 8px;
+}
+
+/* Meta Info (stars, lessons, students) */
+.course-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: #666;
+  margin: 8px 0;
+}
+
+/* Price */
+.price {
+  font-weight: bold;
+  color: #000;
+  margin-top: 6px;
+  font-size: 1rem;
+}

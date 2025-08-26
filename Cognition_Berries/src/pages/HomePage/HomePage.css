@@ -45,9 +45,29 @@
 }
 
 .hero-right .image-placeholder {
-    background-image: url(/Cognition_Berries/public/);
+    background-image: url(/Reflective-Pendant-Light-in-Study-Room.png);
     background-size: cover;
     width: 500px;
     height: 500px;
-    border: 1px solid #aaa;
+    /* border: 1px solid #aaa; */
+}
+
+.sec2{
+    border:1px solid lime;
+    height:60vh;
+}
+
+.reasons{
+    border:1px solid red;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    height:60%;
+    width:100%;
+}
+
+.reason-blk{
+    border:1px solid red;
+    width:25%;
+    height:100%
 }

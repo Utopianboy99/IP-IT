@@ -1,85 +1,104 @@
 import "./UserDashboard.css";
-import { FiShoppingBag, FiMessageSquare, FiHeart, FiTrendingUp } from "react-icons/fi";
+import { FiShoppingBag, FiBook, FiAward, FiClock } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 const UserDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const user = localStorage.getItem('user');
+    const user = localStorage.getItem("user");
     if (!user) {
-      navigate('/login');
+      navigate("/login");
     }
   }, [navigate]);
 
+  const user = JSON.parse(localStorage.getItem("user")) || {
+    name: user.name,
+    avatar: "https://i.pravatar.cc/150?img=3",
+    role: "Cognitive Skills Learner",
+    points: 1200,
+  };
+
   return (
-    <div className="dash-layout">
-      <aside className="sidebar">
-        <h2 className="logo">🍃MySpace</h2>
-        <nav>
+    <div className="dashboard-container">
+      {/* Left Column - Profile */}
+      <div className="dashboard-left">
+        <div className="profile-card">
+          <img src={user.avatar} alt="User Avatar" className="profile-img" />
+          <h2>{user.name}</h2>
+          <p>{user.role}</p>
+          <div className="points-badge">{user.points} pts</div>
+        </div>
+      </div>
+
+      {/* Middle Column - Main Content */}
+      <div className="dashboard-main">
+        <div className="welcome-header">
+          <h1>Welcome back, {user.name} 👋</h1>
+          <p>Here’s your learning summary.</p>
+        </div>
+
+        <div className="stats-grid">
+          <div className="stat-card">
+            <FiBook className="stat-icon" />
+            <div>
+              <h4>Active Courses</h4>
+              <p>4</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <FiShoppingBag className="stat-icon" />
+            <div>
+              <h4>Purchases</h4>
+              <p>12</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <FiAward className="stat-icon" />
+            <div>
+              <h4>Achievements</h4>
+              <p>7</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <FiClock className="stat-icon" />
+            <div>
+              <h4>Hours Learned</h4>
+              <p>45h</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="progress-card">
+          <h3>Weekly Learning Progress</h3>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: "68%" }}></div>
+          </div>
+          <p>68% of weekly goal completed</p>
+        </div>
+      </div>
+
+      {/* Right Column - Upcoming Tasks */}
+      <div className="dashboard-right">
+        <div className="task-card">
+          <h3>Upcoming Lessons</h3>
           <ul>
-            <li>Home</li>
-            <li>My Orders</li>
-            <li>Messages</li>
-            <li>Saved</li>
-            <li>Settings</li>
+            <li>🧠 Memory Boosting Techniques – Today, 10:00 AM</li>
+            <li>📚 Speed Reading Practice – Tomorrow, 8:00 AM</li>
+            <li>💡 Problem Solving Session – Sep 15, 2:00 PM</li>
           </ul>
-        </nav>
-      </aside>
+        </div>
 
-      <main className="dashboard">
-        <header className="dash-header">
-          <div className="user-greeting">
-            <h1>Welcome back, Sanje 👋</h1>
-            <p>Here’s a quick look at your activity.</p>
-          </div>
-          <div className="profile-summary">
-            <img src="https://i.pravatar.cc/40?img=3" alt="User Avatar" className="avatar" />
-            <span className="username">Sanje</span>
-          </div>
-        </header>
-
-        <section className="card-grid">
-          <div className="card">
-            <FiShoppingBag className="icon" />
-            <div>
-              <h4>Orders</h4>
-              <p>12 Total</p>
-            </div>
-          </div>
-          <div className="card">
-            <FiMessageSquare className="icon" />
-            <div>
-              <h4>Messages</h4>
-              <p>3 New</p>
-            </div>
-          </div>
-          <div className="card">
-            <FiHeart className="icon" />
-            <div>
-              <h4>Saved Items</h4>
-              <p>5</p>
-            </div>
-          </div>
-          <div className="card">
-            <FiTrendingUp className="icon" />
-            <div>
-              <h4>Progress</h4>
-              <p>68% Complete</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="recent-activity">
-          <h3>Recent Activity</h3>
+        <div className="task-card">
+          <h3>To-Do</h3>
           <ul>
-            <li>🛒 You purchased "Cognition Mastery" – R650</li>
-            <li>💬 Replied to a support message</li>
-            <li>❤️ Saved "Financial Freedom PDF Guide"</li>
+            <li>✔ Complete Cognitive Mastery Quiz</li>
+            <li>✔ Download Learning Guide</li>
+            <li>⬜ Join Live Coaching Session</li>
           </ul>
-          <button className="lime-btn">Update Profile</button>
-        </section>
-      </main>
+        </div>
+      </div>
     </div>
   );
 };

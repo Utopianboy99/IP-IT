@@ -1,0 +1,93 @@
+.footer {
+  background-color: #fff;
+  color: #000;
+  padding: 2rem;
+  border-top: 1px solid #ddd;
+}
+
+.footer-container {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.footer-left {
+  max-width: 300px;
+}
+
+.footer-logo {
+  font-family: 'Pacifico', cursive;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+}
+
+.footer-contact p {
+  margin: 0.3rem 0;
+}
+
+.footer-contact a {
+  color: black;
+  text-decoration: none;
+}
+
+.footer-contact a:hover {
+  text-decoration: underline;
+}
+
+.footer-social {
+  display: flex;
+  gap: 10px;
+  margin-top: 1rem;
+}
+
+.footer-social a {
+  font-size: 1.2rem;
+  color: black;
+  transition: color 0.3s ease;
+}
+
+.footer-social a:hover {
+  color: #ff6600;
+}
+
+.footer-links {
+  display: flex;
+  gap: 3rem;
+}
+
+.footer-links ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-links li {
+  margin-bottom: 0.5rem;
+}
+
+.footer-links a {
+  text-decoration: none;
+  color: black;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
+}
+
+.footer-bottom {
+  border-top: 1px solid #ccc;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.footer-policy-links a {
+  margin-left: 1rem;
+  text-decoration: none;
+  color: black;
+}
+
+.footer-policy-links a:hover {
+  text-decoration: underline;
+}
