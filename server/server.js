@@ -14,7 +14,8 @@ const PORT = process.env.PORT || 3000;
 const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
 
 app.use(express.json());
-app.use(cors());
+app.use(cors()); 
+
 
 let db;
 
@@ -24,6 +25,8 @@ async function connectToMongo() {
     await client.connect();
     db = client.db('cognition-berries'); 
     console.log('✅ Connected to MongoDB');
+    const settingsRouter = require('./routes/settings')(db);
+    app.use('/settings', settingsRouter);
   } catch (error) {
     console.error('❌ MongoDB connection failed:', error);
   }
@@ -53,6 +56,7 @@ async function basicAuth(req, res, next) {
     next(); // Authenticated
      user.joined_date = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
     user.is_active = true;
+    req.user = user;
   } catch (err) {
     res.status(500).json({ error: 'Authentication error' });
   }
@@ -62,20 +66,36 @@ async function basicAuth(req, res, next) {
 
 
 const storage = multer.diskStorage({
-  destination: './uploads/',
-  filename: (req, file, cb) =>
-    cb(null, `${Date.now()}-${file.originalname}`),
+  destination: "./uploads/",
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
 });
 
-const upload = multer({ storage });
-
-app.post('/api/upload-profile', upload.single('profilePicture'), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
-  const imageUrl = `http://localhost:3000/uploads/${req.file.filename}`;
-  return res.status(200).json({ imageUrl });
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed!"));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
 });
 
-app.use('/uploads', express.static('uploads'));
+app.post("/api/upload-profile", upload.single("profilePicture"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded." });
+
+  const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+
+  // Example: update DB
+  // await db.collection("users").updateOne(
+  //   { _id: req.user.id },
+  //   { $set: { avatar: imageUrl } }
+  // );
+
+  res.status(200).json({ imageUrl });
+});
+
+app.use("/uploads", express.static("uploads"));
 
 app.post('/users/login', async (req, res) => {
   const { email, password } = req.body;
@@ -676,6 +696,109 @@ app.delete('/orders/:id', async (req, res) => {
   }
 });
 
+
+app.get('/live-sessions', basicAuth, async (req, res) => {
+  try {
+    // Fetch all live sessions from database
+    const sessions = await db.collection('live_sessions')
+      .find({})
+      .sort({ startTime: 1 })
+      .toArray();
+
+    // Process sessions to include status
+    const currentTime = new Date();
+    const processedSessions = sessions.map(session => {
+      const startTime = new Date(session.startTime);
+      const endTime = new Date(session.endTime);
+      
+      let status;
+      if (currentTime >= startTime && currentTime <= endTime) {
+        status = 'live';
+      } else if (currentTime < startTime) {
+        status = 'upcoming';
+      } else {
+        status = 'completed';
+      }
+
+      return {
+        _id: session._id,
+        title: session.title,
+        description: session.description,
+        instructor: session.instructor,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        status: status,
+        participants: session.participants || 0,
+        maxParticipants: session.maxParticipants || 100,
+        category: session.category || 'General',
+        meetingLink: session.meetingLink || '',
+        recordingAvailable: session.recordingAvailable || false
+      };
+    });
+
+    res.json(processedSessions);
+    
+  } catch (error) {
+    console.error('Error fetching live sessions:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch live sessions' 
+    });
+  }
+});
+
+// Additional endpoint to create a session (for testing)
+app.post('/live-sessions', basicAuth, async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      instructor,
+      startTime,
+      endTime,
+      category,
+      maxParticipants,
+      meetingLink
+    } = req.body;
+
+    // Validation
+    if (!title || !description || !instructor || !startTime || !endTime) {
+      return res.status(400).json({
+        error: 'Missing required fields: title, description, instructor, startTime, endTime'
+      });
+    }
+
+    const newSession = {
+      title,
+      description,
+      instructor,
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+      category: category || 'General',
+      maxParticipants: maxParticipants || 100,
+      participants: 0,
+      meetingLink: meetingLink || '',
+      recordingAvailable: false,
+      createdAt: new Date(),
+      createdBy: req.user.email
+    };
+
+    const result = await db.collection('live_sessions').insertOne(newSession);
+    
+    res.status(201).json({
+      message: 'Session created successfully',
+      sessionId: result.insertedId,
+      session: newSession
+    });
+    
+  } catch (error) {
+    console.error('Error creating session:', error);
+    res.status(500).json({
+      error: 'Failed to create session'
+    });
+  }
+});
+
+
 // === FORUM POSTS ===
 app.post('/forum-posts', async (req, res) => {
   try {
@@ -860,6 +983,104 @@ app.delete('/material-books/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete book' });
   }
 });
+
+
+app.get('/dashboard/user/:email', async (req, res) => {
+  try {
+    const email = req.params.email;
+
+    // Fetch base user
+    const user = await db.collection('Users').findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Fetch related data
+    const orders = await db.collection('order-summary').find({ userEmail: email }).toArray();
+    const courses = await db.collection('material-courses').find().toArray();
+    const posts = await db.collection('forum-posts').find({ userEmail: email }).toArray();
+    const replies = await db.collection('forum-replies').find({ userEmail: email }).toArray();
+
+    // Calculate progress
+    const totalCourses = orders.reduce((sum, o) => sum + (o.items?.length || 0), 0);
+    const completedCourses = orders.filter(o => o.status === "Completed").length;
+    const progress = {
+      totalCourses,
+      completedCourses,
+      inProgressCourses: totalCourses - completedCourses,
+      completionRate: totalCourses ? Math.round((completedCourses / totalCourses) * 100) : 0,
+      totalStudyTime: user.totalStudyTime || 0,
+      averageScore: user.averageScore || 0,
+      certificatesEarned: completedCourses
+    };
+
+    // Achievements
+    const achievements = [];
+    if (completedCourses > 0) achievements.push({ name: "First Course", icon: "🎓", earned: true });
+    if (progress.totalStudyTime > 1000) achievements.push({ name: "Study Master", icon: "📖", earned: true });
+    if (progress.averageScore > 80) achievements.push({ name: "High Achiever", icon: "⭐", earned: true });
+
+    // Recent activity
+    const activity = [
+      ...orders.map(o => ({ type: "purchase", title: "Bought a course", time: o.createdAt })),
+      ...posts.map(p => ({ type: "forum", title: "Posted in forum", time: p.createdAt })),
+      ...replies.map(r => ({ type: "forum_reply", title: "Replied in forum", time: r.createdAt }))
+    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 10);
+
+    res.json({
+      user: {
+        email: user.email,
+        joined_date: user.joined_date
+      },
+      progress,
+      achievements,
+      recentActivity: activity,
+      enrolledCourses: courses.slice(0, 3), // basic recommendation
+      studyStreak: user.studyStreak || 0,
+      weeklyGoals: user.weeklyGoals || { studyHours: { current: 0, target: 5 } }
+    });
+
+  } catch (err) {
+    console.error("User dashboard error:", err);
+    res.status(500).json({ error: "Failed to fetch user dashboard" });
+  }
+});app.get('/dashboard/admin', async (req, res) => {
+  try {
+    const users = await db.collection('Users').find().toArray();
+    const courses = await db.collection('material-courses').find().toArray();
+    const orders = await db.collection('order-summary').find().toArray();
+    const transactions = await db.collection('transactions').find().toArray();
+    const reviews = await db.collection('reviews').find().toArray();
+
+    // Stats
+    const totalUsers = users.length;
+    const revenue = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+    const completionRate = orders.length ? Math.round((orders.filter(o => o.status === 'Completed').length / orders.length) * 100) : 0;
+    const avgRating = reviews.length ? Math.round(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) : 0;
+
+    // Top performers
+    const userStats = {};
+    orders.forEach(order => {
+      if (!userStats[order.userEmail]) userStats[order.userEmail] = { email: order.userEmail, spent: 0 };
+      userStats[order.userEmail].spent += order.totalAmount || 0;
+    });
+    const topPerformers = Object.values(userStats).sort((a, b) => b.spent - a.spent).slice(0, 5);
+
+    res.json({
+      stats: { totalUsers, revenue, completionRate, avgRating, courses: courses.length },
+      topPerformers,
+      recentOrders: orders.slice(-10).reverse(),
+      systemAlerts: [] // You can add checks here like failed transactions, growth spikes etc.
+    });
+  } catch (err) {
+    console.error("Admin dashboard error:", err);
+    res.status(500).json({ error: "Failed to fetch admin dashboard" });
+  }
+});
+
+
+
+
 
 
 app.listen(PORT, () => {
