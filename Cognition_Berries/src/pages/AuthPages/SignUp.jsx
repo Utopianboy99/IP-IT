@@ -18,33 +18,37 @@ const SignupPage = () => {
   };
 
   const handleSubmit = async e => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const res = await fetch('http://localhost:3000/users', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(formData)
-    });
+    try {
+      const res = await fetch('http://localhost:3000/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
 
-    const data = await res.json();
-    if (res.ok) {
-      // Store user and token in localStorage
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token); // Store token
+      const data = await res.json();
+      if (res.ok) {
+        // Build Basic Auth header from signup form
+        const authHeader = "Basic " + btoa(`${formData.email}:${formData.password}`);
 
-      alert('Signup successful!');
-      navigate('/home');
-    } else {
-      alert(data.message || 'Signup failed.');
+        // Save for dashboards
+        localStorage.setItem("auth", authHeader);
+        localStorage.setItem("user", JSON.stringify({ email: formData.email }));
+
+        alert("Signup successful!");
+        navigate("/home");
+      }
+      else {
+        alert(data.message || 'Signup failed.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Server error.');
     }
-  } catch (err) {
-    console.error(err);
-    alert('Server error.');
-  }
-};
+  };
 
 
   return (

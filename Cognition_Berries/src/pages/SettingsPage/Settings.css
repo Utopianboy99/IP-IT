@@ -1,0 +1,156 @@
+/* styles.css */
+.settings-container {
+  display: flex;
+  height: 100vh;
+  background-color: #f5f5f5;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  border:1px solid red;
+}
+
+.content {
+  border:1px solid red;
+  width: 100%;
+  /* max-width: 600px; */
+  margin: 0 auto;
+}
+
+.section {
+  margin-bottom: 40px;
+}
+
+.section h2 {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.section p {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.theme-options, .table-options {
+  display: flex;
+  gap: 20px;
+}
+
+.theme-option, .table-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.theme-preview, .table-preview {
+  width: 100px;
+  height: 80px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+.light {
+  background-color: #fff;
+}
+
+.dark {
+  background-color: #1a1a2e;
+}
+
+.system {
+  background-color: #f0f0f0;
+}
+
+.theme-option.active .theme-preview,
+.table-preview.active {
+  border-color: #4146f8;
+  box-shadow: 0 0 5px #4146f8;
+}
+
+.accent-colors {
+  display: flex;
+  gap: 10px;
+}
+
+.color-option {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.color-option.dropdown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ddd;
+  font-size: 16px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #4146f8;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+button {
+  margin: 5px;
+  padding: 5px 10px;
+  background-color: #4146f8;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #3538d1;
+}
+
+input[type="password"] {
+  padding: 5px;
+  margin-right: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}

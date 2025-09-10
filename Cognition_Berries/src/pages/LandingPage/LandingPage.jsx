@@ -7,6 +7,7 @@ import LoginPage from '../AuthPages/Login'
 import './LandingPage.css'
 import FeedbackCarousel from '../../components/FeedBackCourosel/FeedbackCarousel'
 import Footer from '../../components/Footer/Footer'
+import LiveSession from '../LiveSession/LiveSession'
 
 
 function LandingPage() {
@@ -40,9 +41,9 @@ function LandingPage() {
           <button>
             <Link to='/courses' element={<Courses />} > Start Learning </Link>
           </button>
-          <button>
+          {/* <button>
             <Link to='/signup' element={<SignupPage />} > Join </Link>
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -103,7 +104,7 @@ function LandingPage() {
             <Link to='/signup' element={<SignupPage />} >Start </Link>
           </button>
           <button>
-            <Link to='/loging' element={<LoginPage />} >Join {`>`} </Link>
+            <Link to='/liveSession' element={<LiveSession />} >Join {`>`} </Link>
           </button>
         </div>
       </section>

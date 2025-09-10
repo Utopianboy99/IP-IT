@@ -45,8 +45,8 @@ function Footer() {
           <ul>
             <li><Link to="/about">About Us</Link></li>
             <li><Link to="/courses">Courses Offered</Link></li>
-            <li><Link to="/live-sessions">Live Sessions</Link></li>
-            <li><Link to="/community">Community Forum</Link></li>
+            <li><Link to="/liveSession">Live Sessions</Link></li>
+            <li><Link to="/CommunityForum">Community Forum</Link></li>
             <li><Link to="/blog">Blog Articles</Link></li>
           </ul>
           <ul>
