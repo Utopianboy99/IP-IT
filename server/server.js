@@ -37,7 +37,12 @@ connectToMongo();
 // ---- Basic Authentication ----
 
 async function basicAuth(req, res, next) {
-  if (req.method === 'POST' && req.path === '/users') return next();
+   if (
+    (req.method === 'POST' && req.path.startsWith('/users')) || 
+    (req.method === 'POST' && req.path === '/users/login')
+  ) {
+    return next();
+  }
 
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Basic ')) {
