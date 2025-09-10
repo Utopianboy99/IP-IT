@@ -13,6 +13,8 @@ import ExtraMaterial from "./pages/ExtraMaterial/ExtraMaterial"
 import CheckoutPage from "./pages/CheckoutPage/CheckoutPage"
 import { CartProvider } from "./Context/CartContext"
 import OrdersSummary from "./pages/Orders-summary/Orders-summary"
+import LiveSession from "./pages/LiveSession/LiveSession"
+import SettingsPage from "./pages/SettingsPage/Settings"
 
 
 const ProtectedRoutr = ({ children }) => {
@@ -84,6 +86,21 @@ function App() {
           <ProtectedRoutr>
             <OrdersSummary/>
           </ProtectedRoutr>
+          }
+          />
+          <Route
+          path='liveSession'
+          element={
+            <ProtectedRoutr>
+              <LiveSession/>
+            </ProtectedRoutr>
+          } />
+          <Route
+          path='settings'
+          element={
+            <ProtectedRoutr>
+              <SettingsPage />
+            </ProtectedRoutr>
           }
           />
         <Route path='/*' element={<NotFound />} />

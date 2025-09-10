@@ -17,38 +17,37 @@ const LoginPage = () => {
   };
 
   const handleSubmit = async e => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const res = await fetch('http://localhost:3000/users/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(credentials)
-    });
+    try {
+      const res = await fetch('http://localhost:3000/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(credentials)
+      });
 
-    const data = await res.json();
-    if (res.ok) {
-      // Save user (so you can build the Basic Auth header later)
-      localStorage.setItem('user', JSON.stringify({
-        email: credentials.email,
-        password: credentials.password
-      }));
+      const data = await res.json();
+      if (res.ok) {
+        // Build Basic Auth header
+        const authHeader = "Basic " + btoa(`${credentials.email}:${credentials.password}`);
 
-      // ✅ Save a simple "auth" flag for ProtectedRoutr
-      localStorage.setItem('auth', 'true');
+        // Save for dashboards
+        localStorage.setItem("auth", authHeader);
+        localStorage.setItem("user", JSON.stringify({ email: credentials.email }));
 
-      alert(`Hey Welcome Back ${credentials.email}`);
-      navigate('/home');
-    } else {
-      alert(data.message || 'Login failed.');
+        alert(`Hey Welcome Back ${credentials.email}`);
+        navigate("/home");
+      }
+      else {
+        alert(data.message || 'Login failed.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Server error.');
     }
-  } catch (err) {
-    console.error(err);
-    alert('Server error.');
-  }
-};
+  };
 
 
   return (

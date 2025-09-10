@@ -10,25 +10,21 @@ const HomePage = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setLoading(true);
-    setError("");
-
-    const auth = localStorage.getItem("auth"); // <-- base64 auth stored at login
-
-    fetch("http://localhost:3000/courses", {
+    const auth = localStorage.getItem("auth");
+    fetch("http://localhost:3000/reviews", {
       headers: {
         "Content-Type": "application/json",
-        Authorization: auth ? `Basic ${auth}` : "", // attach if available
+        Authorization: auth || "",
       },
     })
       .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch courses");
+        if (!res.ok) throw new Error("Failed to fetch reviews");
         return res.json();
       })
-      .then(data => setCourses(Array.isArray(data) ? data : []))
-      .catch(err => setError(err.message || "Could not load courses"))
-      .finally(() => setLoading(false));
+      .then(setReviews)
+      .catch(err => console.error("Failed to fetch reviews:", err));
   }, []);
+
 
   return (
     <div>

@@ -9,7 +9,7 @@ const Navbar = () => {
   const [user, setUser] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
-  
+
   // Use cart context
   const { cartCount, clearCart, fetchCartCount } = useCart();
 
@@ -18,10 +18,15 @@ const Navbar = () => {
     if (storedUser) {
       const userData = JSON.parse(storedUser);
       setUser(userData);
-      // Fetch cart count when user is loaded
+    }
+  }, []); // run once on mount
+
+  // Fetch cart count only when user is set
+  useEffect(() => {
+    if (user) {
       fetchCartCount();
     }
-  }, [fetchCartCount]);
+  }, [user, fetchCartCount]);
 
   const handleLogout = () => {
     localStorage.removeItem('auth');
@@ -99,6 +104,7 @@ const Navbar = () => {
           <li><Link to="/settings" onClick={toggleSidebar}>⚙️ Settings</Link></li>
           <li><Link to="/CommunityForum" onClick={toggleSidebar}>💬 Community Forum</Link></li>
           <li><Link to="/extra-material" onClick={toggleSidebar}>💬 Extra Material</Link></li>
+          <li><Link to="/liveSession" onClick={toggleSidebar}>💬 Live Sessions</Link></li>
         </ul>
 
         <div className="sidebar-footer">

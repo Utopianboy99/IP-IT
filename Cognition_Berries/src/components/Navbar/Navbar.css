@@ -11,8 +11,10 @@
   position: fixed;
   z-index: 1;
   width:97vw;
+  overflow-y: hidden;
   height:30px
   /* margin-bottom: 20px; */
+
 }
 
 .nav-links {
@@ -128,6 +130,7 @@
   border: none;
   font-size: 1.8rem;
   cursor: pointer;
+  color:black
 }
 
 .sidebar-user {
@@ -179,6 +182,7 @@
   cursor: pointer;
   font-weight: 500;
   transition: all 0.2s;
+  color:black
 }
 
 .logout-btn:hover {
