@@ -36,9 +36,12 @@ connectToMongo();
 
 // ---- Basic Authentication ----
 
+import base64 from 'base-64';
+
 async function basicAuth(req, res, next) {
+  // Skip auth for register + login only
   if (
-    (req.method === 'POST' && req.path.startsWith('/users')) ||
+    (req.method === 'POST' && req.path === '/users') || // registration
     (req.method === 'POST' && req.path === '/users/login')
   ) {
     return next();
@@ -55,17 +58,29 @@ async function basicAuth(req, res, next) {
 
   try {
     const user = await db.collection('Users').findOne({ email });
-    if (!user || base64.decode(user.password) !== password) {
+    if (!user) {
       return res.status(401).json({ error: 'Invalid Credentials' });
     }
-    next(); // Authenticated
-    user.joined_date = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
-    user.is_active = true;
-    req.user = user;
+
+    const decodedPassword = base64.decode(user.password);
+    if (decodedPassword !== password) {
+      return res.status(401).json({ error: 'Invalid Credentials' });
+    }
+
+    // Attach authenticated user BEFORE calling next()
+    req.user = {
+      ...user,
+      joined_date: user.joined_date || new Date().toISOString().split('T')[0],
+      is_active: true
+    };
+
+    next();
   } catch (err) {
+    console.error("Auth error:", err);
     res.status(500).json({ error: 'Authentication error' });
   }
 }
+
 
 // --- Apply middleware before routes ---
 
