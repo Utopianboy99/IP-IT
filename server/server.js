@@ -6,7 +6,7 @@ const base64 = require('base-64');
 const multer = require('multer')
 const cors = require("cors");
 const Paystack = require("paystack-api");
-
+const { ObjectId } = require("mongodb");
 
 dotenv.config();
 const app = express();
@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
 
 app.use(express.json());
-app.use(cors()); 
+app.use(cors());
 
 
 let db;
@@ -23,7 +23,7 @@ async function connectToMongo() {
   const client = new MongoClient(process.env.MONGO_URI);
   try {
     await client.connect();
-    db = client.db('cognition-berries'); 
+    db = client.db('cognition-berries');
     console.log('✅ Connected to MongoDB');
     const settingsRouter = require('./routes/settings')(db);
     app.use('/settings', settingsRouter);
@@ -37,8 +37,8 @@ connectToMongo();
 // ---- Basic Authentication ----
 
 async function basicAuth(req, res, next) {
-   if (
-    (req.method === 'POST' && req.path.startsWith('/users')) || 
+  if (
+    (req.method === 'POST' && req.path.startsWith('/users')) ||
     (req.method === 'POST' && req.path === '/users/login')
   ) {
     return next();
@@ -59,7 +59,7 @@ async function basicAuth(req, res, next) {
       return res.status(401).json({ error: 'Invalid Credentials' });
     }
     next(); // Authenticated
-     user.joined_date = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+    user.joined_date = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
     user.is_active = true;
     req.user = user;
   } catch (err) {
@@ -139,7 +139,7 @@ app.post('/users', async (req, res) => {
   try {
     user.password = base64.encode(user.password);
     const result = await db.collection('Users').insertOne(user);
-    res.status(201).json(result.ops ? result.ops[0] : user);
+    res.status(201).json({ _id: result.insertedId, ...user });
   } catch (err) {
     if (!user.email || !user.password) {
       return res.status(400).json({ error: 'Email and password are required' });
@@ -165,9 +165,9 @@ app.get('/protected', async (req, res) => {
       return res.status(401).json({ error: 'Invalid user' });
     }
 
-   if (base64.decode(user.password) !== password) {
-  return res.status(401).json({ error: 'Invalid password' });
-}
+    if (base64.decode(user.password) !== password) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
 
     res.json({ message: 'Access granted' });
   } catch (err) {
@@ -260,7 +260,7 @@ app.put('/courses/:id', async (req, res) => {
     const result = await db.collection('material-courses').findOneAndUpdate(
       { course_id: req.params.id },
       { $set: updates },
-      { returnOriginal: 'after' } 
+      { returnOriginal: 'after' }
     );
     result.value ? res.json(result.value) : res.status(404).json({ message: 'Course not found' });
   } catch (err) {
@@ -359,7 +359,7 @@ app.post("/api/paystack/initialize", async (req, res) => {
 app.get('/api/verify-payment/:reference', async (req, res) => {
   try {
     const response = await paystack.transaction.verify(req.params.reference);
-    
+
     if (response.data.status === 'success') {
       // Save transaction to your database
       const transaction = {
@@ -370,9 +370,9 @@ app.get('/api/verify-payment/:reference', async (req, res) => {
         created_at: new Date(),
         gateway_response: response.data.gateway_response
       };
-      
+
       await db.collection('transactions').insertOne(transaction);
-      
+
       res.json({ status: 'success', data: response.data });
     } else {
       res.json({ status: 'failed', message: 'Payment verification failed' });
@@ -555,7 +555,7 @@ app.delete('/cart/user/:email', async (req, res) => {
 app.delete('/cart/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    
+
     // Validate ObjectId format
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid cart item ID format' });
@@ -715,7 +715,7 @@ app.get('/live-sessions', basicAuth, async (req, res) => {
     const processedSessions = sessions.map(session => {
       const startTime = new Date(session.startTime);
       const endTime = new Date(session.endTime);
-      
+
       let status;
       if (currentTime >= startTime && currentTime <= endTime) {
         status = 'live';
@@ -742,11 +742,11 @@ app.get('/live-sessions', basicAuth, async (req, res) => {
     });
 
     res.json(processedSessions);
-    
+
   } catch (error) {
     console.error('Error fetching live sessions:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch live sessions' 
+    res.status(500).json({
+      error: 'Failed to fetch live sessions'
     });
   }
 });
@@ -788,13 +788,13 @@ app.post('/live-sessions', basicAuth, async (req, res) => {
     };
 
     const result = await db.collection('live_sessions').insertOne(newSession);
-    
+
     res.status(201).json({
       message: 'Session created successfully',
       sessionId: result.insertedId,
       session: newSession
     });
-    
+
   } catch (error) {
     console.error('Error creating session:', error);
     res.status(500).json({
@@ -886,7 +886,7 @@ app.put('/forum-replies/:id', async (req, res) => {
 });
 
 app.delete('/forum-replies/:id', async (req, res) => {
-  
+
   try {
     const result = await db.collection('forum-replies').deleteOne({ reply_id: req.params.id });
     result.deletedCount
@@ -1049,7 +1049,7 @@ app.get('/dashboard/user/:email', async (req, res) => {
     console.error("User dashboard error:", err);
     res.status(500).json({ error: "Failed to fetch user dashboard" });
   }
-});app.get('/dashboard/admin', async (req, res) => {
+}); app.get('/dashboard/admin', async (req, res) => {
   try {
     const users = await db.collection('Users').find().toArray();
     const courses = await db.collection('material-courses').find().toArray();
