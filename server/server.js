@@ -36,7 +36,6 @@ connectToMongo();
 
 // ---- Basic Authentication ----
 
-import base64 from 'base-64';
 
 async function basicAuth(req, res, next) {
   // Skip auth for register + login only
