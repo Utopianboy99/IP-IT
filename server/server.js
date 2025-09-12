@@ -103,7 +103,7 @@ app.post("/api/upload-profile", upload.single("profilePicture"), async (req, res
 app.use("/uploads", express.static("uploads"));
 
 app.post('/users/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
   console.log("Login request:", req.body);
 
   if (!email || !password) {
