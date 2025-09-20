@@ -18,7 +18,7 @@ jobs:
 
       - name: Build project
         run: npm run build
-        working-directory: ./Cognition_Berries/dist
+        working-directory: ./Cognition_Berries
 
       - name: Deploy to S3
         uses: jakejarvis/s3-sync-action@master
