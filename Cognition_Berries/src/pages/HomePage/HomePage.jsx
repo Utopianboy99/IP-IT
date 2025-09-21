@@ -12,7 +12,7 @@ const HomePage = () => {
 
   useEffect(() => {
     const auth = localStorage.getItem("auth");
-    fetch(`http://${BaseAPI}:3000/reviews`, {
+    fetch(`http://${BaseAPI}:3000/courses`, {
       headers: {
         "Content-Type": "application/json",
         Authorization: auth || "",
@@ -22,8 +22,12 @@ const HomePage = () => {
         if (!res.ok) throw new Error("Failed to fetch reviews");
         return res.json();
       })
-      .then(setCourses)
-      .catch(err => console.error("Failed to fetch reviews:", err));
+      .then(data => {
+        setCourses(data);
+        setError(""); // clear error if successful
+      })
+      .catch(err => console.error("Failed to fetch reviews:", err))
+      .finally(() => setLoading(false));;
   }, []);
 
 
