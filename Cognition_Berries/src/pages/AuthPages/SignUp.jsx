@@ -21,7 +21,7 @@ const SignupPage = () => {
     e.preventDefault();
 
     try {
-      const res = await fetch('http://localhost:3000/users', {
+      const res = await fetch(`http://${BaseAPI}:3000/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

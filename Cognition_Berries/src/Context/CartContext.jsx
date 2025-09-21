@@ -26,7 +26,7 @@ export const CartProvider = ({ children }) => {
       }
 
       const res = await fetch(
-        `http://localhost:3000/cart/${encodeURIComponent(user.email)}`,
+        `http://${Base_API}:3000/cart/${encodeURIComponent(user.email)}`,
         {
           headers: {
             Authorization: "Basic " + btoa(`${user.email}:${user.password}`),
@@ -66,7 +66,7 @@ export const CartProvider = ({ children }) => {
         throw new Error('User must be logged in to add items to cart');
       }
 
-      const res = await fetch('http://localhost:3000/cart', {
+      const res = await fetch(`http://${Base_API}:3000/cart`, {
         method: 'POST',
         headers: {
           Authorization: "Basic " + btoa(`${user.email}:${user.password}`),
@@ -100,7 +100,7 @@ export const CartProvider = ({ children }) => {
       const user = JSON.parse(localStorage.getItem('user'));
       if (!user?.email || !user?.password) return false;
 
-      const res = await fetch(`http://localhost:3000/cart/${itemId}`, {
+      const res = await fetch(`http://${Base_API}:3000/cart/${itemId}`, {
         method: 'DELETE',
         headers: {
           Authorization: "Basic " + btoa(`${user.email}:${user.password}`),
@@ -125,7 +125,7 @@ export const CartProvider = ({ children }) => {
       const user = JSON.parse(localStorage.getItem('user'));
       if (!user?.email || !user?.password) return false;
 
-      const res = await fetch(`http://localhost:3000/cart/${itemId}`, {
+      const res = await fetch(`http://${Base_API}:3000/cart/${itemId}`, {
         method: 'PUT',
         headers: {
           Authorization: "Basic " + btoa(`${user.email}:${user.password}`),

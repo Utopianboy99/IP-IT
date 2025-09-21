@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './AuthPages.css';
 
 const LoginPage = () => {
+  const BaseAPI = process.env.BASE_API
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState({
     email: '',
@@ -20,7 +21,7 @@ const LoginPage = () => {
     e.preventDefault();
 
     try {
-      const res = await fetch('http://localhost:3000/users/login', {
+      const res = await fetch(`http://${BaseAPI}:3000/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
