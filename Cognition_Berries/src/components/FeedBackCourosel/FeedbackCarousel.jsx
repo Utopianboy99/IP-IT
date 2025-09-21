@@ -8,6 +8,7 @@ function FeedbackCarousel() {
 
   // Fetch reviews from backend with Basic Auth
   useEffect(() => {
+    const Base_API = import.meta.env.VITE_BASE_API
     const fetchReviews = async () => {
       try {
         const user = JSON.parse(localStorage.getItem("user"));
@@ -19,7 +20,7 @@ function FeedbackCarousel() {
         // Build Basic Auth header
         const authHeader = "Basic " + btoa(`${user.email}:${user.password}`);
 
-        const res = await fetch("http://localhost:3000/reviews", {
+        const res = await fetch(`http://${Base_API}:3000/reviews`, {
           headers: {
             Authorization: authHeader,
           },
