@@ -3,6 +3,7 @@ import './AuthPages.css';
 import { useNavigate } from 'react-router-dom';
 
 const SignupPage = () => {
+  const Base_API = import.meta.env.BASE_API
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
@@ -21,7 +22,7 @@ const SignupPage = () => {
     e.preventDefault();
 
     try {
-      const res = await fetch(`http://${BaseAPI}:3000/users`, {
+      const res = await fetch(`http://${Base_API}:3000/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
