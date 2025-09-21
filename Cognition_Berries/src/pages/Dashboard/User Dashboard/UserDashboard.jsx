@@ -20,6 +20,7 @@ const UserDashboard = () => {
   // Get user from localStorage or auth
   const getCurrentUser = () => {
     const authHeader = localStorage.getItem("auth");
+    const Base_API = import.meta.env.VITE_BASE_API
 
     if (authHeader && authHeader.startsWith("Basic ")) {
       try {
@@ -53,7 +54,7 @@ const UserDashboard = () => {
         const decoded = atob(authHeader.split(" ")[1]);
         const [email] = decoded.split(":");
 
-        const response = await fetch(`http://localhost:3000/dashboard/user/${email}`, {
+        const response = await fetch(`http://${Base_API}:3000/dashboard/user/${email}`, {
           headers: { Authorization: authHeader }
         });
 

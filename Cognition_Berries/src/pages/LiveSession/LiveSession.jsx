@@ -9,7 +9,7 @@ export default function LiveSessionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
-  const Base_API = import.meta.env.BASE_API  
+  const Base_API = import.meta.env.VITE_BASE_API  
 
 
   // Update current time every second
