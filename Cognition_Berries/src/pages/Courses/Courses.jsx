@@ -18,6 +18,7 @@ function CoursesPage() {
 
 
   useEffect(() => {
+    const BaseAPI = process.env.BASE_API
     const fetchCourses = async () => {
       setLoading(true);
       try {
@@ -31,7 +32,7 @@ function CoursesPage() {
         // Build Basic Auth header
         const authHeader = "Basic " + btoa(`${user.email}:${user.password}`);
 
-        const res = await fetch("http://localhost:3000/courses", {
+        const res = await fetch(`http://${BaseAPI}t:3000/courses`, {
           headers: {
             Authorization: authHeader,
           },

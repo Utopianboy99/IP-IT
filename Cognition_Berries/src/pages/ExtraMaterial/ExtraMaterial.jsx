@@ -6,6 +6,7 @@ import "./ExtraMaterial.css";
 function ExtraMaterial() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
+  const BaseAPI = process.env.BASE_API
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -20,7 +21,7 @@ function ExtraMaterial() {
 
         const authHeader = "Basic " + btoa(`${user.email}:${user.password}`);
 
-        const res = await fetch("http://localhost:3000/material-books", {
+        const res = await fetch(`http://${BaseAPI}:3000/material-books`, {
           headers: {
             Authorization: authHeader,
           },
@@ -56,7 +57,7 @@ function ExtraMaterial() {
     const authHeader = "Basic " + btoa(`${user.email}:${user.password}`);
 
     // 1. Get current cart for this user
-    const response = await fetch(`http://localhost:3000/cart/${user.email}`, {
+    const response = await fetch(`http://${BaseAPI}:3000/cart/${user.email}`, {
       headers: { Authorization: authHeader }
     });
     const currentCart = response.ok ? await response.json() : [];
@@ -65,7 +66,7 @@ function ExtraMaterial() {
 
     if (existingItem) {
       // Update quantity
-      const res = await fetch(`http://localhost:3000/cart/${existingItem._id}`, {
+      const res = await fetch(`http://${BaseAPI}:3000/cart/${existingItem._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -81,7 +82,7 @@ function ExtraMaterial() {
 
     } else {
       // Add new item (with quantity: 1)
-      const res = await fetch("http://localhost:3000/cart", {
+      const res = await fetch(`http://${BaseAPI}:3000/cart`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

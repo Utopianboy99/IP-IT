@@ -8,10 +8,11 @@ const HomePage = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const BaseAPI = process.env.BASE_API
 
   useEffect(() => {
     const auth = localStorage.getItem("auth");
-    fetch("http://localhost:3000/reviews", {
+    fetch(`http://${BaseAPI}:3000/reviews`, {
       headers: {
         "Content-Type": "application/json",
         Authorization: auth || "",

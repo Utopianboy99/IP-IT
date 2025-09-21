@@ -10,6 +10,8 @@ const ThemeProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : false;
   });
 
+  const Base_API = process.env.BASEAPI
+
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
     if (isDarkMode) {

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 
 const ProfilePage = () => {
   const [file, setFile] = useState(null);
+  const Base_API = process.env.BASEAPI
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -12,7 +13,7 @@ const ProfilePage = () => {
     formData.append('profilePicture', file);
 
     try {
-      const res = await fetch('http://localhost:3000/api/upload-profile', {
+      const res = await fetch(`http://${Base_API}:3000/api/upload-profile`, {
         method: 'POST',
         body: formData,
       });

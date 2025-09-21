@@ -111,7 +111,7 @@ const finalizeOrder = async (method, reference) => {
 
     const authHeader = "Basic " + btoa(`${user.email}:${user.password}`);
 
-    const res = await fetch("http://localhost:3000/checkout", {
+    const res = await fetch(`http://${BaseAPI}:3000/checkout`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -14,6 +14,7 @@ export default function CartPage() {
 
   // Load cart from API with better error handling
   const loadCart = async () => {
+    const BaseAPI = process.env.BASE_API
     setLoading(true);
     setError(null);
     
@@ -35,7 +36,7 @@ export default function CartPage() {
 
       const authHeader = "Basic " + btoa(`${user.email}:${user.password}`);
 
-      const response = await fetch(`http://localhost:3000/cart/${user.email}`, {
+      const response = await fetch(`http://${BaseAPI}:3000/cart/${user.email}`, {
         headers: {
           Authorization: authHeader,
         },

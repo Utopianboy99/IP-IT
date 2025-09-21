@@ -9,6 +9,8 @@ export default function LiveSessionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const Base_API = process.env.BASE_API  
+
 
   // Update current time every second
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function LiveSessionsPage() {
       const { email, password } = JSON.parse(authData);
       // const credentials = btoa(`${email}:${password}`);
 
-      const response = await fetch("http://localhost:3000/live-sessions", {
+      const response = await fetch(`http://${Base_API}:3000/live-sessions`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
