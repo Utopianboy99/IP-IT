@@ -12,6 +12,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
+const Base_API = process.env.BASE_API
 
 app.use(express.json());
 app.use(cors());
@@ -1103,5 +1104,5 @@ app.get('/dashboard/user/:email', async (req, res) => {
 
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running at http://${Base_API}:${PORT}`);
 });
