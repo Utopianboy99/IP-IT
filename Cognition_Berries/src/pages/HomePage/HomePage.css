@@ -53,15 +53,15 @@
 }
 
 .sec2{
-    /* border:1px solid lime; */
+    border:1px solid white;
     height:60vh;
 }
 
 .reasons{
     /* border:1px solid red; */
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
     height:60%;
     width:100%;
 }
