@@ -22,7 +22,7 @@ const HomePage = () => {
         if (!res.ok) throw new Error("Failed to fetch reviews");
         return res.json();
       })
-      .then(setReviews)
+      .then(setCourses)
       .catch(err => console.error("Failed to fetch reviews:", err));
   }, []);
 
