@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 
 const ProfilePage = () => {
   const [file, setFile] = useState(null);
-  const Base_API = import.meta.env.BASEAPI
+  const Base_API = import.meta.env.VITE_BASE_API
 
   const handleUpload = async (e) => {
     e.preventDefault();

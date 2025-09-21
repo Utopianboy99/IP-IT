@@ -8,7 +8,7 @@ const HomePage = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const BaseAPI = import.meta.env.BASE_API
+  const BaseAPI = import.meta.env.VITE_BASE_API
 
   useEffect(() => {
     const auth = localStorage.getItem("auth");

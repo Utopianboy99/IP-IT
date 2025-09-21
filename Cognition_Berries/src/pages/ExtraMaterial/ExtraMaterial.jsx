@@ -6,7 +6,7 @@ import "./ExtraMaterial.css";
 function ExtraMaterial() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
-  const BaseAPI = import.meta.env.BASE_API
+  const BaseAPI = import.meta.env.VITE_BASE_API
 
   useEffect(() => {
     const fetchBooks = async () => {

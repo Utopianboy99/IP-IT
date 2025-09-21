@@ -3,7 +3,7 @@ import './AuthPages.css';
 import { useNavigate } from 'react-router-dom';
 
 const SignupPage = () => {
-  const Base_API = import.meta.env.BASE_API
+  const Base_API = import.meta.env.VITE_BASE_API
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',

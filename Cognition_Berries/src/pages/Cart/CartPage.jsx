@@ -14,7 +14,7 @@ export default function CartPage() {
 
   // Load cart from API with better error handling
   const loadCart = async () => {
-    const BaseAPI = import.meta.env.BASE_API
+    const BaseAPI = import.meta.env.VITE_BASE_API
     setLoading(true);
     setError(null);
     

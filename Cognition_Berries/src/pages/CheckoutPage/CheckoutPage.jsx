@@ -4,7 +4,7 @@ import "./CheckoutPage.css";
 
 export default function CheckoutPage() {
   const [checkoutData, setCheckoutData] = useState(null);
-  const BaseAPI = import.meta.env.BASE_API
+  const BaseAPI = import.meta.env.VITE_BASE_API
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",

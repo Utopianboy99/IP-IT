@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './AuthPages.css';
 
 const LoginPage = () => {
-  const BaseAPI = import.meta.env.BASE_API
+  const BaseAPI = import.meta.env.VITE_BASE_API
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState({
     email: '',
