@@ -18,7 +18,7 @@ function CoursesPage() {
 
 
   useEffect(() => {
-    const BaseAPI = process.env.BASE_API
+    const BaseAPI = import.meta.env.BASE_API
     const fetchCourses = async () => {
       setLoading(true);
       try {
