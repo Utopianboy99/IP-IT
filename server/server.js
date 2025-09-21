@@ -913,24 +913,24 @@ app.delete('/forum-replies/:id', async (req, res) => {
 });
 
 // === LIVE SESSIONS ===
-app.post('/live-sessions', async (req, res) => {
-  try {
-    const session = req.body;
-    const result = await db.collection('live-sessions').insertOne(session);
-    res.status(201).json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to create live session' });
-  }
-});
+// app.post('/live-sessions', async (req, res) => {
+//   try {
+//     const session = req.body;
+//     const result = await db.collection('live-sessions').insertOne(session);
+//     res.status(201).json(result);
+//   } catch (err) {
+//     res.status(500).json({ error: 'Failed to create live session' });
+//   }
+// });
 
-app.get('/live-sessions', async (req, res) => {
-  try {
-    const sessions = await db.collection('live-sessions').find().toArray();
-    res.json(sessions);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to get sessions' });
-  }
-});
+// app.get('/live-sessions', async (req, res) => {
+//   try {
+//     const sessions = await db.collection('live-sessions').find().toArray();
+//     res.json(sessions);
+//   } catch (err) {
+//     res.status(500).json({ error: 'Failed to get sessions' });
+//   }
+// });
 
 app.put('/live-sessions/:id', async (req, res) => {
   try {
