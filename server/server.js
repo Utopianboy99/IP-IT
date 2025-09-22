@@ -1,634 +1,547 @@
+// server.js
+// Enhanced Express server using Firebase Auth (verifyIdToken) + MongoDB
+// All endpoints properly protected with Firebase authentication where appropriate
 
-const express = require('express');
-const { MongoClient } = require('mongodb');
-const dotenv = require('dotenv');
-const base64 = require('base-64');
-const multer = require('multer')
+const express = require("express");
+const { MongoClient, ObjectId } = require("mongodb");
+const dotenv = require("dotenv");
+const multer = require("multer");
 const cors = require("cors");
 const Paystack = require("paystack-api");
-const { ObjectId } = require("mongodb");
+const admin = require("firebase-admin");
+const path = require("path");
 
 dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
-const Base_API = process.env.BASE_API
+const Base_API = process.env.BASE_API || "localhost";
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "";
+const paystack = PAYSTACK_SECRET_KEY ? Paystack(PAYSTACK_SECRET_KEY) : null;
 
 app.use(express.json());
 app.use(cors());
 
+// ----------------------- Firebase Admin Init -----------------------
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+} else if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+  const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+  const serviceAccount = require(serviceAccountPath);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+} else {
+  console.warn(
+    "⚠️ Firebase service account not found in env. Set FIREBASE_SERVICE_ACCOUNT (json string) or FIREBASE_SERVICE_ACCOUNT_PATH."
+  );
+}
 
+// ----------------------- MongoDB -----------------------
 let db;
-
 async function connectToMongo() {
-  const client = new MongoClient(process.env.MONGO_URI);
+  const client = new MongoClient(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
   try {
     await client.connect();
-    db = client.db('cognition-berries');
-    console.log('✅ Connected to MongoDB');
-    const settingsRouter = require('./routes/settings')(db);
-    app.use('/settings', settingsRouter);
-  } catch (error) {
-    console.error('❌ MongoDB connection failed:', error);
+    db = client.db(process.env.MONGO_DB_NAME || "cognition-berries");
+    console.log("✅ Connected to MongoDB");
+  } catch (err) {
+    console.error("❌ MongoDB connection failed:", err);
+    process.exit(1);
   }
 }
-
 connectToMongo();
 
-// ---- Basic Authentication ----
-
-
-async function basicAuth(req, res, next) {
-  // Skip auth for register + login only
-  if (
-    (req.method === 'POST' && req.path === '/users') || // registration
-    (req.method === 'POST' && req.path === '/users/login')
-  ) {
-    return next();
-  }
-
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    return res.status(401).json({ error: 'Missing Authorization Header' });
-  }
-
-  const base64Credentials = authHeader.split(' ')[1];
-  const decoded = base64.decode(base64Credentials);
-  const [email, password] = decoded.split(':');
-
-  try {
-    const user = await db.collection('Users').findOne({ email });
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid Credentials' });
-    }
-
-    const decodedPassword = base64.decode(user.password);
-    if (decodedPassword !== password) {
-      return res.status(401).json({ error: 'Invalid Credentials' });
-    }
-
-    // Attach authenticated user BEFORE calling next()
-    req.user = {
-      ...user,
-      joined_date: user.joined_date || new Date().toISOString().split('T')[0],
-      is_active: true
-    };
-
-    next();
-  } catch (err) {
-    console.error("Auth error:", err);
-    res.status(500).json({ error: 'Authentication error' });
-  }
-}
-
-
-// --- Apply middleware before routes ---
-
-
+// ----------------------- File upload (multer) -----------------------
 const storage = multer.diskStorage({
   destination: "./uploads/",
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
-
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("image/")) cb(null, true);
     else cb(new Error("Only image files are allowed!"));
   },
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// ----------------------- Auth middleware -----------------------
+async function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Missing or invalid Authorization header" });
+  }
+
+  const idToken = authHeader.split(" ")[1];
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    req.user = {
+      uid: decoded.uid,
+      email: decoded.email,
+      name: decoded.name || decoded.displayName || "",
+      phone: decoded.phone_number || "",
+    };
+
+    // Ensure user exists in MongoDB
+    if (db) {
+      await db.collection("Users").updateOne(
+        { uid: req.user.uid },
+        {
+          $setOnInsert: {
+            uid: req.user.uid,
+            email: req.user.email,
+            name: req.user.name,
+            createdAt: new Date(),
+            role: "student"
+          },
+        },
+        { upsert: true }
+      );
+    }
+
+    next();
+  } catch (err) {
+    console.error("Firebase auth verification failed:", err);
+    return res.status(401).json({ error: "Unauthorized", detail: err.message });
+  }
+}
+
+// Optional middleware for admin-only routes
+async function requireAdmin(req, res, next) {
+  try {
+    const user = await db.collection("Users").findOne({ uid: req.user.uid });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    next();
+  } catch (err) {
+    console.error("Admin check failed:", err);
+    res.status(500).json({ error: "Failed to verify admin status" });
+  }
+}
+
+// ----------------------- Public routes (no auth required) -----------------------
+app.get("/", (req, res) => 
+  res.json({ 
+    message: "Cognition Berries API", 
+    env: process.env.NODE_ENV || "development" 
+  })
+);
+
+// Public courses listing
+app.get("/courses", async (req, res) => {
+  try {
+    const courses = await db.collection("material-courses").find().toArray();
+    res.json(courses);
+  } catch (err) {
+    console.error("Failed to fetch courses:", err);
+    res.status(500).json({ error: "Failed to fetch courses" });
+  }
 });
 
-app.post("/api/upload-profile", upload.single("profilePicture"), async (req, res) => {
+// Public reviews
+app.get("/reviews", async (req, res) => {
+  try {
+    const reviews = await db.collection("reviews").find().toArray();
+    res.json(reviews);
+  } catch (err) {
+    console.error("Failed to fetch reviews:", err);
+    res.status(500).json({ error: "Failed to fetch reviews" });
+  }
+});
+
+// Public material-books
+app.get("/material-books", async (req, res) => {
+  try {
+    const books = await db.collection("material-books").find().toArray();
+    res.json(books);
+  } catch (err) {
+    console.error("Failed to fetch books:", err);
+    res.status(500).json({ error: "Failed to fetch books" });
+  }
+});
+
+// Public forum posts (read-only)
+app.get("/forum-posts", async (req, res) => {
+  try {
+    const posts = await db.collection("forum-posts").find().toArray();
+    res.json(posts);
+  } catch (err) {
+    console.error("Failed to fetch forum posts:", err);
+    res.status(500).json({ error: "Failed to get forum posts" });
+  }
+});
+
+// Public forum replies (read-only)
+app.get("/forum-replies", async (req, res) => {
+  try {
+    const replies = await db.collection("forum-replies").find().toArray();
+    res.json(replies);
+  } catch (err) {
+    console.error("Failed to fetch forum replies:", err);
+    res.status(500).json({ error: "Failed to get replies" });
+  }
+});
+
+// ----------------------- Auth-protected routes -----------------------
+
+// User profile management
+app.get("/me", requireAuth, async (req, res) => {
+  try {
+    const user = await db.collection("Users").findOne({ uid: req.user.uid });
+    res.json(user || { uid: req.user.uid, email: req.user.email, name: req.user.name });
+  } catch (err) {
+    console.error("Failed to fetch profile:", err);
+    res.status(500).json({ error: "Failed to fetch profile" });
+  }
+});
+
+app.put("/me", requireAuth, async (req, res) => {
+  try {
+    const updates = req.body || {};
+    updates.updatedAt = new Date();
+    const result = await db.collection("Users").findOneAndUpdate(
+      { uid: req.user.uid },
+      { $set: updates },
+      { returnDocument: "after", upsert: true }
+    );
+    res.json(result.value);
+  } catch (err) {
+    console.error("Failed to update profile:", err);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+// Upload profile picture
+app.post("/api/upload-profile", requireAuth, upload.single("profilePicture"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded." });
 
   const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
 
-  // Example: update DB
-  // await db.collection("users").updateOne(
-  //   { _id: req.user.id },
-  //   { $set: { avatar: imageUrl } }
-  // );
-
-  res.status(200).json({ imageUrl });
-});
-
-app.use("/uploads", express.static("uploads"));
-
-app.post('/users/login', async (req, res) => {
-  const { email, password } = req.body || {};
-  console.log("Login request:", req.body);
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
-  }
-
   try {
-    const user = await db.collection('Users').findOne({ email });
-    console.log("User found in DB:", user);
-
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-
-    const decodedPassword = base64.decode(user.password);
-    console.log("Decoded password:", decodedPassword, " | Provided:", password);
-
-    if (decodedPassword !== password) {
-      return res.status(401).json({ error: 'Invalid password' });
-    }
-
-    res.json({ message: 'Login successful', user: { email: user.email } });
+    await db.collection("Users").updateOne(
+      { uid: req.user.uid },
+      { $set: { avatar: imageUrl, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    res.status(200).json({ imageUrl });
   } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-app.use(basicAuth);
-
-// === USERS ===
-app.post('/users', async (req, res) => {
-  const user = req.body;
-  try {
-    user.password = base64.encode(user.password);
-    const result = await db.collection('Users').insertOne(user);
-    res.status(201).json({ _id: result.insertedId, ...user });
-  } catch (err) {
-    if (!user.email || !user.password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-    res.status(500).json({ error: 'Failed to create user' });
+    console.error("Error saving avatar:", err);
+    res.status(500).json({ error: "Failed to save avatar" });
   }
 });
 
-app.get('/protected', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    return res.status(401).json({ error: 'Missing Authorization header' });
-  }
-
+// ----------------------- User Management (Admin only) -----------------------
+app.get("/users", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const encoded = authHeader.split(' ')[1];
-    const decoded = Buffer.from(encoded, 'base64').toString('ascii'); // e.g., "user@example.com:password123"
-    const [email, password] = decoded.split(':');
-
-    const user = await db.collection('Users').findOne({ email });
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid user' });
-    }
-
-    if (base64.decode(user.password) !== password) {
-      return res.status(401).json({ error: 'Invalid password' });
-    }
-
-    res.json({ message: 'Access granted' });
-  } catch (err) {
-    console.error('Error during auth:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-
-app.get('/users', async (req, res) => {
-  try {
-    const users = await db.collection('Users').find().toArray();
+    const users = await db.collection("Users").find().toArray();
     res.json(users);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch users' });
+    console.error("Failed to fetch users:", err);
+    res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 
-
-
-
-app.get('/users/:email', async (req, res) => {
+app.get("/users/:email", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const user = await db.collection('Users').findOne({ email: req.params.email });
-    user ? res.json(user) : res.status(404).json({ message: 'User not found' });
+    const user = await db.collection("Users").findOne({ email: req.params.email });
+    user ? res.json(user) : res.status(404).json({ message: "User not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to get user' });
+    console.error("Failed to get user:", err);
+    res.status(500).json({ error: "Failed to get user" });
   }
 });
 
-app.put('/users/:email', async (req, res) => {
+app.put("/users/:email", requireAuth, requireAdmin, async (req, res) => {
   try {
     const updates = req.body;
-    if (updates.password) updates.password = base64.encode(updates.password);
-    const result = await db.collection('Users').findOneAndUpdate(
+    updates.updatedAt = new Date();
+    const result = await db.collection("Users").findOneAndUpdate(
       { email: req.params.email },
       { $set: updates },
-      { returnDocument: 'after' }
+      { returnDocument: "after" }
     );
-    result.value ? res.json(result.value) : res.status(404).json({ message: 'User updated' });
+    result.value ? res.json(result.value) : res.status(404).json({ message: "User not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update user' });
+    console.error("Failed to update user:", err);
+    res.status(500).json({ error: "Failed to update user" });
   }
 });
 
-app.delete('/users/:email', async (req, res) => {
+app.delete("/users/:email", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const result = await db.collection('Users').deleteOne({ email: req.params.email });
-    result.deletedCount ? res.json({ message: 'User deleted' }) : res.status(404).json({ message: 'User not found' });
+    const result = await db.collection("Users").deleteOne({ email: req.params.email });
+    result.deletedCount ? res.json({ message: "User deleted" }) : res.status(404).json({ message: "User not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete user' });
+    console.error("Failed to delete user:", err);
+    res.status(500).json({ error: "Failed to delete user" });
   }
 });
 
-// === COURSES ===
-app.post('/courses', async (req, res) => {
+// ----------------------- Course Management -----------------------
+app.post("/courses", requireAuth, requireAdmin, async (req, res) => {
   try {
     const course = req.body;
-    const result = await db.collection('material-courses').insertOne(course);
-    res.status(201).json(result.ops ? result.ops[0] : course);
+    course.createdAt = new Date();
+    course.createdBy = req.user.uid;
+    const result = await db.collection("material-courses").insertOne(course);
+    res.status(201).json({ _id: result.insertedId, ...course });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create course' });
+    console.error("Failed to create course:", err);
+    res.status(500).json({ error: "Failed to create course" });
   }
 });
 
-app.get('/courses', async (req, res) => {
-
-  console.log("Authorization header:", req.headers.authorization);
-
+app.get("/courses/:id", async (req, res) => {
   try {
-    const courses = await db.collection('material-courses').find().toArray();
-    res.json(courses);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch courses' });
-  }
-});
-
-app.get('/courses/:id', async (req, res) => {
-  try {
-    const course = await db.collection('material-courses').findOne({ course_id: req.params.id });
-    course ? res.json(course) : res.status(404).json({ message: 'Course not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to get course' });
-  }
-});
-
-app.put('/courses/:id', async (req, res) => {
-  try {
-    const updates = req.body;
-    const result = await db.collection('material-courses').findOneAndUpdate(
-      { course_id: req.params.id },
-      { $set: updates },
-      { returnOriginal: 'after' }
-    );
-    result.value ? res.json(result.value) : res.status(404).json({ message: 'Course not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update course' });
-  }
-});
-
-app.delete('/courses/:id', async (req, res) => {
-  try {
-    const result = await db.collection('material-courses').deleteOne({ course_id: req.params.id });
-    result.deletedCount ? res.json({ message: 'Course deleted' }) : res.status(404).json({ message: 'Course not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to delete course' });
-  }
-});
-
-// === REVIEWS ===
-
-// Create a review
-app.post('/reviews', async (req, res) => {
-  try {
-    const review = req.body;
-    const result = await db.collection('reviews').insertOne(review);
-    res.status(201).json(result.ops ? result.ops[0] : review);
-  } catch (err) {
-    res.status(500).json({ error: 'Unsuccessful review save, something went wrong' });
-  }
-});
-
-// Get all reviews
-app.get('/reviews', async (req, res) => {
-  try {
-    const reviews = await db.collection('reviews').find().toArray();
-    res.json(reviews);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch reviews' });
-  }
-});
-
-// Get a single review by ID
-app.get('/reviews/:id', async (req, res) => {
-  try {
-    const review = await db.collection('reviews').findOne({ review_id: req.params.id });
-    review ? res.json(review) : res.status(404).json({ message: 'Review not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to get review' });
-  }
-});
-
-// Update a review by ID
-app.put('/reviews/:id', async (req, res) => {
-  try {
-    const updates = req.body;
-    const result = await db.collection('reviews').findOneAndUpdate(
-      { review_id: req.params.id },
-      { $set: updates },
-      { returnDocument: 'after' }
-    );
-    result.value
-      ? res.json(result.value)
-      : res.status(404).json({ message: 'Review not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update review' });
-  }
-});
-
-// Delete a review by ID
-app.delete('/reviews/:id', async (req, res) => {
-  try {
-    const result = await db.collection('reviews').deleteOne({ review_id: req.params.id });
-    result.deletedCount
-      ? res.json({ message: 'Review deleted' })
-      : res.status(404).json({ message: 'Review not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to delete review' });
-  }
-});
-
-
-// Initialize payment endpoint
-app.post("/api/paystack/initialize", async (req, res) => {
-  try {
-    const { email, amount } = req.body;
-    const response = await paystack.transaction.initialize({
-      email,
-      amount: amount * 100, // smallest unit
-      currency: "ZAR"
+    const course = await db.collection("material-courses").findOne({ 
+      $or: [
+        { course_id: req.params.id },
+        { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+      ]
     });
-    res.json(response);
+    course ? res.json(course) : res.status(404).json({ message: "Course not found" });
   } catch (err) {
-    console.error("Paystack error:", err.message);
-    res.status(500).json({ error: "Payment initialization failed" });
-  }
-});
-// Verify payment endpoint
-app.get('/api/verify-payment/:reference', async (req, res) => {
-  try {
-    const response = await paystack.transaction.verify(req.params.reference);
-
-    if (response.data.status === 'success') {
-      // Save transaction to your database
-      const transaction = {
-        payment_id: response.data.reference,
-        email: response.data.customer.email,
-        amount: response.data.amount / 100, // Convert from kobo
-        status: response.data.status,
-        created_at: new Date(),
-        gateway_response: response.data.gateway_response
-      };
-
-      await db.collection('transactions').insertOne(transaction);
-
-      res.json({ status: 'success', data: response.data });
-    } else {
-      res.json({ status: 'failed', message: 'Payment verification failed' });
-    }
-  } catch (error) {
-    console.error('Payment verification error:', error);
-    res.status(400).json({ error: error.message });
+    console.error("Failed to get course:", err);
+    res.status(500).json({ error: "Failed to get course" });
   }
 });
 
-app.post("/api/paystack/callback", async (req, res) => {
-  try {
-    const event = req.body;
-
-    if (event.event === "charge.success") {
-      const reference = event.data.reference;
-
-      // Verify with Paystack API to be safe
-      const response = await paystack.transaction.verify(reference);
-
-      if (response.data.status === "success") {
-        const transaction = {
-          payment_id: response.data.reference,
-          email: response.data.customer.email,
-          amount: response.data.amount / 100, // convert from kobo
-          status: response.data.status,
-          created_at: new Date(),
-          gateway_response: response.data.gateway_response,
-        };
-
-        await db.collection("transactions").insertOne(transaction);
-      }
-    }
-
-    res.sendStatus(200); // Paystack expects a 200 OK
-  } catch (err) {
-    console.error("Callback error:", err);
-    res.sendStatus(500);
-  }
-});
-
-
-// === TRANSACTIONS ===
-app.post('/transactions', async (req, res) => {
-  try {
-    const txn = req.body;
-    const result = await db.collection('transactions').insertOne(txn);
-    res.status(201).json(result.ops ? result.ops[0] : txn);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to create transaction' });
-  }
-});
-
-app.get('/transactions', async (req, res) => {
-  try {
-    const txns = await db.collection('transactions').find().toArray();
-    res.json(txns);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch transactions' });
-  }
-});
-
-app.get('/transactions/:payment_id', async (req, res) => {
-  try {
-    const txn = await db.collection('transactions').findOne({ payment_id: req.params.payment_id });
-    txn ? res.json(txn) : res.status(404).json({ message: 'Transaction not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to get transaction' });
-  }
-});
-
-app.put('/transactions/:payment_id', async (req, res) => {
+app.put("/courses/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const updates = req.body;
-    const result = await db.collection('transactions').findOneAndUpdate(
-      { payment_id: req.params.payment_id },
+    updates.updatedAt = new Date();
+    updates.updatedBy = req.user.uid;
+    const result = await db.collection("material-courses").findOneAndUpdate(
+      { 
+        $or: [
+          { course_id: req.params.id },
+          { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+        ]
+      },
       { $set: updates },
-      { returnDocument: 'after' }
+      { returnDocument: "after" }
     );
-    result.value ? res.json(result.value) : res.status(404).json({ message: 'Transaction not found' });
+    result.value ? res.json(result.value) : res.status(404).json({ message: "Course not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update transaction' });
+    console.error("Failed to update course:", err);
+    res.status(500).json({ error: "Failed to update course" });
   }
 });
 
-app.delete('/transactions/:payment_id', async (req, res) => {
+app.delete("/courses/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const result = await db.collection('transactions').deleteOne({ payment_id: req.params.payment_id });
-    result.deletedCount ? res.json({ message: 'Transaction deleted' }) : res.status(404).json({ message: 'Transaction not found' });
+    const result = await db.collection("material-courses").deleteOne({ 
+      $or: [
+        { course_id: req.params.id },
+        { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+      ]
+    });
+    result.deletedCount ? res.json({ message: "Course deleted" }) : res.status(404).json({ message: "Course not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete transaction' });
+    console.error("Failed to delete course:", err);
+    res.status(500).json({ error: "Failed to delete course" });
   }
 });
 
-// === CART ===
-// === Add item to cart ===
-app.post('/cart', async (req, res) => {
+// ----------------------- Reviews Management -----------------------
+app.post("/reviews", requireAuth, async (req, res) => {
   try {
-    const { userEmail, title, price, author, description, quantity } = req.body;
+    const review = {
+      ...req.body,
+      uid: req.user.uid,
+      userEmail: req.user.email,
+      createdAt: new Date()
+    };
+    const result = await db.collection("reviews").insertOne(review);
+    res.status(201).json({ _id: result.insertedId, ...review });
+  } catch (err) {
+    console.error("Failed to create review:", err);
+    res.status(500).json({ error: "Unsuccessful review save, something went wrong" });
+  }
+});
 
-    if (!userEmail) {
-      return res.status(400).json({ error: "User email is required" });
-    }
+app.get("/reviews/:id", async (req, res) => {
+  try {
+    const review = await db.collection("reviews").findOne({ 
+      $or: [
+        { review_id: req.params.id },
+        { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+      ]
+    });
+    review ? res.json(review) : res.status(404).json({ message: "Review not found" });
+  } catch (err) {
+    console.error("Failed to get review:", err);
+    res.status(500).json({ error: "Failed to get review" });
+  }
+});
 
+app.put("/reviews/:id", requireAuth, async (req, res) => {
+  try {
+    const updates = req.body;
+    updates.updatedAt = new Date();
+    const result = await db.collection("reviews").findOneAndUpdate(
+      { 
+        $and: [
+          { uid: req.user.uid }, // Only allow users to update their own reviews
+          {
+            $or: [
+              { review_id: req.params.id },
+              { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+            ]
+          }
+        ]
+      },
+      { $set: updates },
+      { returnDocument: "after" }
+    );
+    result.value ? res.json(result.value) : res.status(404).json({ message: "Review not found or access denied" });
+  } catch (err) {
+    console.error("Failed to update review:", err);
+    res.status(500).json({ error: "Failed to update review" });
+  }
+});
+
+app.delete("/reviews/:id", requireAuth, async (req, res) => {
+  try {
+    const result = await db.collection("reviews").deleteOne({ 
+      $and: [
+        { uid: req.user.uid }, // Only allow users to delete their own reviews
+        {
+          $or: [
+            { review_id: req.params.id },
+            { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+          ]
+        }
+      ]
+    });
+    result.deletedCount ? res.json({ message: "Review deleted" }) : res.status(404).json({ message: "Review not found or access denied" });
+  } catch (err) {
+    console.error("Failed to delete review:", err);
+    res.status(500).json({ error: "Failed to delete review" });
+  }
+});
+
+// ----------------------- Cart Management -----------------------
+app.post("/cart", requireAuth, async (req, res) => {
+  try {
+    const { title, price, author, description, quantity, productId } = req.body;
     const item = {
-      userEmail,
+      uid: req.user.uid,
+      userEmail: req.user.email,
+      productId: productId || null,
       title,
       price: parseFloat(price) || 0,
       author: author || "Unknown",
       description: description || "",
       quantity: parseInt(quantity) || 1,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
-
-    const result = await db.collection('Cart').insertOne(item);
+    const result = await db.collection("Cart").insertOne(item);
     res.status(201).json({ _id: result.insertedId, ...item });
   } catch (err) {
     console.error("Error adding to cart:", err);
-    res.status(500).json({ error: 'Failed to add to cart' });
+    res.status(500).json({ error: "Failed to add to cart" });
   }
 });
 
-app.get('/cart/:email', async (req, res) => {
+app.get("/cart", requireAuth, async (req, res) => {
   try {
-    const email = req.params.email;
-    const items = await db.collection('Cart').find({ userEmail: email }).toArray();
+    const items = await db.collection("Cart").find({ uid: req.user.uid }).toArray();
     res.json(items);
   } catch (err) {
-    console.error('Error fetching cart:', err);
-    res.status(500).json({ error: 'Failed to get user cart items' });
+    console.error("Error fetching cart:", err);
+    res.status(500).json({ error: "Failed to get user cart items" });
   }
 });
 
-app.put('/cart/:id', async (req, res) => {
+app.put("/cart/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid cart item ID format" });
+    
     const { quantity, ...otherUpdates } = req.body;
-
-    console.log("PUT /cart/:id =>", id, "with body:", req.body);
-
-    // Validate ObjectId format
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid cart item ID format' });
-    }
-
     const updates = {
       ...otherUpdates,
-      quantity: parseInt(quantity) || 1
+      quantity: parseInt(quantity) || 1,
+      updatedAt: new Date(),
     };
-
-    const result = await db.collection('Cart').findOneAndUpdate(
-      { _id: new ObjectId(id) },
+    
+    const result = await db.collection("Cart").findOneAndUpdate(
+      { _id: new ObjectId(id), uid: req.user.uid },
       { $set: updates },
-      { returnDocument: 'after' }
+      { returnDocument: "after" }
     );
-
-    if (!result.value) {
-      return res.status(404).json({ error: 'Cart item not found', id });
-    }
-
+    
+    if (!result.value) return res.status(404).json({ error: "Cart item not found" });
     res.json(result.value);
   } catch (err) {
-    console.error("Update error:", err);
-    if (err.name === 'BSONTypeError') {
-      return res.status(400).json({ error: 'Invalid cart item ID format' });
-    }
-    res.status(500).json({ error: 'Failed to update cart item' });
+    console.error("Update cart error:", err);
+    res.status(500).json({ error: "Failed to update cart item" });
   }
 });
 
-app.delete('/cart/user/:email', async (req, res) => {
-  try {
-    const result = await db.collection('Cart').deleteMany({ userEmail: req.params.email });
-    res.json({ message: `Deleted ${result.deletedCount} items` });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to clear cart' });
-  }
-});
-
-app.delete('/cart/:id', async (req, res) => {
+app.delete("/cart/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id;
-
-    // Validate ObjectId format
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid cart item ID format' });
-    }
-
-    const result = await db.collection('Cart').deleteOne({ _id: new ObjectId(id) });
-    result.deletedCount
-      ? res.json({ message: 'Cart item deleted' })
-      : res.status(404).json({ message: 'Cart item not found' });
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid cart item ID format" });
+    
+    const result = await db.collection("Cart").deleteOne({ _id: new ObjectId(id), uid: req.user.uid });
+    if (!result.deletedCount) return res.status(404).json({ message: "Cart item not found" });
+    res.json({ message: "Cart item deleted" });
   } catch (err) {
-    console.error("Delete error:", err);
-    if (err.name === 'BSONTypeError') {
-      return res.status(400).json({ error: 'Invalid cart item ID format' });
-    }
-    res.status(500).json({ error: 'Failed to delete cart item' });
+    console.error("Delete cart error:", err);
+    res.status(500).json({ error: "Failed to delete cart item" });
   }
 });
 
-
-
-app.post('/checkout', async (req, res) => {
+app.delete("/cart", requireAuth, async (req, res) => {
   try {
-    const { email, paymentMethod, customer } = req.body;
+    const result = await db.collection("Cart").deleteMany({ uid: req.user.uid });
+    res.json({ message: `Deleted ${result.deletedCount} items` });
+  } catch (err) {
+    console.error("Clear cart error:", err);
+    res.status(500).json({ error: "Failed to clear cart" });
+  }
+});
 
-    if (!email) return res.status(400).json({ error: "Missing email" });
+// ----------------------- Checkout & Orders -----------------------
+app.post("/checkout", requireAuth, async (req, res) => {
+  try {
+    const { paymentMethod, customer } = req.body;
+    const cartItems = await db.collection("Cart").find({ uid: req.user.uid }).toArray();
+    if (!cartItems.length) return res.status(400).json({ error: "Cart is empty" });
 
-    // 1. Get all cart items for this user
-    const cartItems = await db.collection("Cart").find({ userEmail: email }).toArray();
-    if (!cartItems.length) {
-      return res.status(400).json({ error: "Cart is empty" });
-    }
-
-    // 2. Calculate total
-    const totalAmount = cartItems.reduce(
-      (sum, item) => sum + (item.price * (item.quantity || 1)),
-      0
-    );
-
-    // 3. Create new order summary
+    const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
     const order = {
-      userEmail: email,
+      uid: req.user.uid,
+      userEmail: req.user.email,
       items: cartItems.map(item => ({
         productId: item.productId,
         title: item.title,
         quantity: item.quantity || 1,
-        price: item.price
+        price: item.price,
       })),
       totalAmount,
       paymentMethod: paymentMethod || "unknown",
       customer,
       status: "Confirmed",
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
-    const result = await db.collection("orders-summary").insertOne(order);
-
-    // 4. Clear the cart
-    await db.collection("Cart").deleteMany({ userEmail: email });
+    const result = await db.collection("order-summary").insertOne(order);
+    await db.collection("Cart").deleteMany({ uid: req.user.uid });
 
     res.status(201).json({ message: "Order placed successfully", orderId: result.insertedId, order });
   } catch (err) {
@@ -637,95 +550,188 @@ app.post('/checkout', async (req, res) => {
   }
 });
 
-
-// === ORDER SUMMARY ===
-
-// Create a new order summary
-app.post('/orders', async (req, res) => {
-  try {
-    const { userEmail, items, totalAmount, status } = req.body;
-
-    if (!userEmail || !items || items.length === 0 || !totalAmount) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const order = {
-      userEmail,
-      items,                 // array of { productId, name, quantity, price }
-      totalAmount,
-      status: status || "Pending",
-      createdAt: new Date()  // auto timestamp
-    };
-
-    const result = await db.collection("order-summary").insertOne(order);
-    res.status(201).json({ _id: result.insertedId, ...order });
-  } catch (err) {
-    console.error("Error saving order:", err);
-    res.status(500).json({ error: "Failed to save order" });
-  }
-});
-
-// Get all orders (admin or dashboard)
-app.get('/orders', async (req, res) => {
+app.get("/orders", requireAuth, requireAdmin, async (req, res) => {
   try {
     const orders = await db.collection("order-summary").find().toArray();
     res.json(orders);
   } catch (err) {
+    console.error("Failed to fetch all orders:", err);
     res.status(500).json({ error: "Failed to fetch orders" });
   }
 });
 
-// Get all orders for a specific user
-app.get('/orders/user/:email', async (req, res) => {
+app.get("/orders/user", requireAuth, async (req, res) => {
   try {
-    const email = req.params.email;
-    const orders = await db.collection("order-summary").find({ userEmail: email }).toArray();
+    const orders = await db.collection("order-summary").find({ uid: req.user.uid }).toArray();
     res.json(orders);
   } catch (err) {
+    console.error("User orders fetch failed:", err);
     res.status(500).json({ error: "Failed to fetch user orders" });
   }
 });
 
-// Update order status
-app.put('/orders/:id', async (req, res) => {
+app.put("/orders/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { ObjectId } = require("mongodb");
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid order ID format" });
+    }
+    const updates = { ...req.body, updatedAt: new Date(), updatedBy: req.user.uid };
     const result = await db.collection("order-summary").findOneAndUpdate(
       { _id: new ObjectId(req.params.id) },
-      { $set: req.body },
+      { $set: updates },
       { returnDocument: "after" }
     );
-    result.value
-      ? res.json(result.value)
-      : res.status(404).json({ message: "Order not found" });
+    result.value ? res.json(result.value) : res.status(404).json({ message: "Order not found" });
   } catch (err) {
+    console.error("Failed to update order:", err);
     res.status(500).json({ error: "Failed to update order" });
   }
 });
 
-// Delete an order (if needed)
-app.delete('/orders/:id', async (req, res) => {
+app.delete("/orders/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { ObjectId } = require("mongodb");
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid order ID format" });
+    }
     const result = await db.collection("order-summary").deleteOne({ _id: new ObjectId(req.params.id) });
-    result.deletedCount
-      ? res.json({ message: "Order deleted" })
-      : res.status(404).json({ message: "Order not found" });
+    result.deletedCount ? res.json({ message: "Order deleted" }) : res.status(404).json({ message: "Order not found" });
   } catch (err) {
+    console.error("Failed to delete order:", err);
     res.status(500).json({ error: "Failed to delete order" });
   }
 });
 
-
-app.get('/live-sessions', basicAuth, async (req, res) => {
+// ----------------------- Forum Management -----------------------
+app.post("/forum-posts", requireAuth, async (req, res) => {
   try {
-    // Fetch all live sessions from database
-    const sessions = await db.collection('live_sessions')
+    const post = {
+      ...req.body,
+      uid: req.user.uid,
+      userEmail: req.user.email,
+      createdAt: new Date(),
+    };
+    const result = await db.collection("forum-posts").insertOne(post);
+    res.status(201).json({ _id: result.insertedId, ...post });
+  } catch (err) {
+    console.error("Failed to create forum post:", err);
+    res.status(500).json({ error: "Failed to create forum post" });
+  }
+});
+
+app.put("/forum-posts/:id", requireAuth, async (req, res) => {
+  try {
+    const updates = { ...req.body, updatedAt: new Date() };
+    const result = await db.collection("forum-posts").findOneAndUpdate(
+      { 
+        $and: [
+          { uid: req.user.uid }, // Only allow users to update their own posts
+          {
+            $or: [
+              { post_id: req.params.id },
+              { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+            ]
+          }
+        ]
+      },
+      { $set: updates },
+      { returnDocument: "after" }
+    );
+    result.value ? res.json(result.value) : res.status(404).json({ message: "Forum post not found or access denied" });
+  } catch (err) {
+    console.error("Failed to update forum post:", err);
+    res.status(500).json({ error: "Failed to update forum post" });
+  }
+});
+
+app.delete("/forum-posts/:id", requireAuth, async (req, res) => {
+  try {
+    const result = await db.collection("forum-posts").deleteOne({ 
+      $and: [
+        { uid: req.user.uid }, // Only allow users to delete their own posts
+        {
+          $or: [
+            { post_id: req.params.id },
+            { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+          ]
+        }
+      ]
+    });
+    result.deletedCount ? res.json({ message: "Forum post deleted" }) : res.status(404).json({ message: "Forum post not found or access denied" });
+  } catch (err) {
+    console.error("Failed to delete forum post:", err);
+    res.status(500).json({ error: "Failed to delete forum post" });
+  }
+});
+
+app.post("/forum-replies", requireAuth, async (req, res) => {
+  try {
+    const reply = {
+      ...req.body,
+      uid: req.user.uid,
+      userEmail: req.user.email,
+      createdAt: new Date(),
+    };
+    const result = await db.collection("forum-replies").insertOne(reply);
+    res.status(201).json({ _id: result.insertedId, ...reply });
+  } catch (err) {
+    console.error("Failed to create reply:", err);
+    res.status(500).json({ error: "Failed to create reply" });
+  }
+});
+
+app.put("/forum-replies/:id", requireAuth, async (req, res) => {
+  try {
+    const updates = { ...req.body, updatedAt: new Date() };
+    const result = await db.collection("forum-replies").findOneAndUpdate(
+      { 
+        $and: [
+          { uid: req.user.uid }, // Only allow users to update their own replies
+          {
+            $or: [
+              { reply_id: req.params.id },
+              { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+            ]
+          }
+        ]
+      },
+      { $set: updates },
+      { returnDocument: "after" }
+    );
+    result.value ? res.json(result.value) : res.status(404).json({ message: "Reply not found or access denied" });
+  } catch (err) {
+    console.error("Failed to update reply:", err);
+    res.status(500).json({ error: "Failed to update reply" });
+  }
+});
+
+app.delete("/forum-replies/:id", requireAuth, async (req, res) => {
+  try {
+    const result = await db.collection("forum-replies").deleteOne({ 
+      $and: [
+        { uid: req.user.uid }, // Only allow users to delete their own replies
+        {
+          $or: [
+            { reply_id: req.params.id },
+            { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+          ]
+        }
+      ]
+    });
+    result.deletedCount ? res.json({ message: "Reply deleted" }) : res.status(404).json({ message: "Reply not found or access denied" });
+  } catch (err) {
+    console.error("Failed to delete reply:", err);
+    res.status(500).json({ error: "Failed to delete reply" });
+  }
+});
+
+// ----------------------- Live Sessions -----------------------
+app.get("/live-sessions", requireAuth, async (req, res) => {
+  try {
+    const sessions = await db.collection("live_sessions")
       .find({})
       .sort({ startTime: 1 })
       .toArray();
 
-    // Process sessions to include status
     const currentTime = new Date();
     const processedSessions = sessions.map(session => {
       const startTime = new Date(session.startTime);
@@ -733,11 +739,11 @@ app.get('/live-sessions', basicAuth, async (req, res) => {
 
       let status;
       if (currentTime >= startTime && currentTime <= endTime) {
-        status = 'live';
+        status = "live";
       } else if (currentTime < startTime) {
-        status = 'upcoming';
+        status = "upcoming";
       } else {
-        status = 'completed';
+        status = "completed";
       }
 
       return {
@@ -750,40 +756,30 @@ app.get('/live-sessions', basicAuth, async (req, res) => {
         status: status,
         participants: session.participants || 0,
         maxParticipants: session.maxParticipants || 100,
-        category: session.category || 'General',
-        meetingLink: session.meetingLink || '',
+        category: session.category || "General",
+        meetingLink: session.meetingLink || "",
         recordingAvailable: session.recordingAvailable || false
       };
     });
 
     res.json(processedSessions);
-
   } catch (error) {
-    console.error('Error fetching live sessions:', error);
-    res.status(500).json({
-      error: 'Failed to fetch live sessions'
-    });
+    console.error("Error fetching live sessions:", error);
+    res.status(500).json({ error: "Failed to fetch live sessions" });
   }
 });
 
-// Additional endpoint to create a session (for testing)
-app.post('/live-sessions', basicAuth, async (req, res) => {
+app.post("/live-sessions", requireAuth, requireAdmin, async (req, res) => {
   try {
     const {
-      title,
-      description,
-      instructor,
-      startTime,
-      endTime,
-      category,
-      maxParticipants,
-      meetingLink
+      title, description, instructor, startTime, endTime,
+      category, maxParticipants, meetingLink
     } = req.body;
 
     // Validation
     if (!title || !description || !instructor || !startTime || !endTime) {
       return res.status(400).json({
-        error: 'Missing required fields: title, description, instructor, startTime, endTime'
+        error: "Missing required fields: title, description, instructor, startTime, endTime"
       });
     }
 
@@ -793,233 +789,201 @@ app.post('/live-sessions', basicAuth, async (req, res) => {
       instructor,
       startTime: new Date(startTime),
       endTime: new Date(endTime),
-      category: category || 'General',
+      category: category || "General",
       maxParticipants: maxParticipants || 100,
       participants: 0,
-      meetingLink: meetingLink || '',
+      meetingLink: meetingLink || "",
       recordingAvailable: false,
       createdAt: new Date(),
-      createdBy: req.user.email
+      createdBy: req.user.uid
     };
 
-    const result = await db.collection('live_sessions').insertOne(newSession);
-
+    const result = await db.collection("live_sessions").insertOne(newSession);
     res.status(201).json({
-      message: 'Session created successfully',
+      message: "Session created successfully",
       sessionId: result.insertedId,
       session: newSession
     });
-
   } catch (error) {
-    console.error('Error creating session:', error);
-    res.status(500).json({
-      error: 'Failed to create session'
+    console.error("Error creating session:", error);
+    res.status(500).json({ error: "Failed to create session" });
+  }
+});
+
+app.put("/live-sessions/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const updates = { ...req.body, updatedAt: new Date(), updatedBy: req.user.uid };
+    const result = await db.collection("live_sessions").findOneAndUpdate(
+      {
+        $or: [
+          { session_id: req.params.id },
+          { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+        ]
+      },
+      { $set: updates },
+      { returnDocument: "after" }
+    );
+    result.value ? res.json(result.value) : res.status(404).json({ message: "Session not found" });
+  } catch (err) {
+    console.error("Failed to update session:", err);
+    res.status(500).json({ error: "Failed to update session" });
+  }
+});
+
+app.delete("/live-sessions/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await db.collection("live_sessions").deleteOne({
+      $or: [
+        { session_id: req.params.id },
+        { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+      ]
     });
-  }
-});
-
-
-// === FORUM POSTS ===
-app.post('/forum-posts', async (req, res) => {
-  try {
-    const post = req.body;
-    const result = await db.collection('forum-posts').insertOne(post);
-    res.status(201).json(result);
+    result.deletedCount ? res.json({ message: "Session deleted" }) : res.status(404).json({ message: "Session not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create forum post' });
+    console.error("Failed to delete session:", err);
+    res.status(500).json({ error: "Failed to delete session" });
   }
 });
 
-app.get('/forum-posts', async (req, res) => {
+// ----------------------- Material Books Management -----------------------
+app.post("/material-books", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const posts = await db.collection('forum-posts').find().toArray();
-    res.json(posts);
+    const book = {
+      ...req.body,
+      createdAt: new Date(),
+      createdBy: req.user.uid
+    };
+    const result = await db.collection("material-books").insertOne(book);
+    res.status(201).json({ _id: result.insertedId, ...book });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to get forum posts' });
+    console.error("Failed to create book:", err);
+    res.status(500).json({ error: "Failed to create book" });
   }
 });
 
-app.put('/forum-posts/:id', async (req, res) => {
+app.get("/material-books/:id", async (req, res) => {
   try {
-    const result = await db.collection('forum-posts').findOneAndUpdate(
-      { post_id: req.params.id },
-      { $set: req.body },
-      { returnDocument: 'after' }
+    const book = await db.collection("material-books").findOne({
+      $or: [
+        { book_id: req.params.id },
+        { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+      ]
+    });
+    book ? res.json(book) : res.status(404).json({ message: "Book not found" });
+  } catch (err) {
+    console.error("Failed to get book:", err);
+    res.status(500).json({ error: "Failed to get book" });
+  }
+});
+
+app.put("/material-books/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const updates = { ...req.body, updatedAt: new Date(), updatedBy: req.user.uid };
+    const result = await db.collection("material-books").findOneAndUpdate(
+      {
+        $or: [
+          { book_id: req.params.id },
+          { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+        ]
+      },
+      { $set: updates },
+      { returnDocument: "after" }
     );
-    result.value
-      ? res.json(result.value)
-      : res.status(404).json({ message: 'Forum post not found' });
+    result.value ? res.json(result.value) : res.status(404).json({ message: "Book not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update forum post' });
+    console.error("Failed to update book:", err);
+    res.status(500).json({ error: "Failed to update book" });
   }
 });
 
-app.delete('/forum-posts/:id', async (req, res) => {
+app.delete("/material-books/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const result = await db.collection('forum-posts').deleteOne({ post_id: req.params.id });
-    result.deletedCount
-      ? res.json({ message: 'Forum post deleted' })
-      : res.status(404).json({ message: 'Forum post not found' });
+    const result = await db.collection("material-books").deleteOne({
+      $or: [
+        { book_id: req.params.id },
+        { _id: ObjectId.isValid(req.params.id) ? new ObjectId(req.params.id) : null }
+      ]
+    });
+    result.deletedCount ? res.json({ message: "Book deleted" }) : res.status(404).json({ message: "Book not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete forum post' });
+    console.error("Failed to delete book:", err);
+    res.status(500).json({ error: "Failed to delete book" });
   }
 });
 
-// === FORUM REPLIES ===
-app.post('/forum-replies', async (req, res) => {
+// ----------------------- Transactions Management -----------------------
+app.post("/transactions", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const reply = req.body;
-    const result = await db.collection('forum-replies').insertOne(reply);
-    res.status(201).json(result);
+    const txn = {
+      ...req.body,
+      createdAt: new Date(),
+      createdBy: req.user.uid
+    };
+    const result = await db.collection("transactions").insertOne(txn);
+    res.status(201).json({ _id: result.insertedId, ...txn });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create reply' });
+    console.error("Failed to create transaction:", err);
+    res.status(500).json({ error: "Failed to create transaction" });
   }
 });
 
-app.get('/forum-replies', async (req, res) => {
+app.get("/transactions", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const replies = await db.collection('forum-replies').find().toArray();
-    res.json(replies);
+    const txns = await db.collection("transactions").find().toArray();
+    res.json(txns);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to get replies' });
+    console.error("Failed to fetch transactions:", err);
+    res.status(500).json({ error: "Failed to fetch transactions" });
   }
 });
 
-app.put('/forum-replies/:id', async (req, res) => {
+app.get("/transactions/:payment_id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const result = await db.collection('forum-replies').findOneAndUpdate(
-      { reply_id: req.params.id },
-      { $set: req.body },
-      { returnDocument: 'after' }
+    const txn = await db.collection("transactions").findOne({ payment_id: req.params.payment_id });
+    txn ? res.json(txn) : res.status(404).json({ message: "Transaction not found" });
+  } catch (err) {
+    console.error("Failed to get transaction:", err);
+    res.status(500).json({ error: "Failed to get transaction" });
+  }
+});
+
+app.put("/transactions/:payment_id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const updates = { ...req.body, updatedAt: new Date(), updatedBy: req.user.uid };
+    const result = await db.collection("transactions").findOneAndUpdate(
+      { payment_id: req.params.payment_id },
+      { $set: updates },
+      { returnDocument: "after" }
     );
-    result.value
-      ? res.json(result.value)
-      : res.status(404).json({ message: 'Reply not found' });
+    result.value ? res.json(result.value) : res.status(404).json({ message: "Transaction not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update reply' });
+    console.error("Failed to update transaction:", err);
+    res.status(500).json({ error: "Failed to update transaction" });
   }
 });
 
-app.delete('/forum-replies/:id', async (req, res) => {
-
+app.delete("/transactions/:payment_id", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const result = await db.collection('forum-replies').deleteOne({ reply_id: req.params.id });
-    result.deletedCount
-      ? res.json({ message: 'Reply deleted' })
-      : res.status(404).json({ message: 'Reply not found' });
+    const result = await db.collection("transactions").deleteOne({ payment_id: req.params.payment_id });
+    result.deletedCount ? res.json({ message: "Transaction deleted" }) : res.status(404).json({ message: "Transaction not found" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete reply' });
+    console.error("Failed to delete transaction:", err);
+    res.status(500).json({ error: "Failed to delete transaction" });
   }
 });
 
-// === LIVE SESSIONS ===
-// app.post('/live-sessions', async (req, res) => {
-//   try {
-//     const session = req.body;
-//     const result = await db.collection('live-sessions').insertOne(session);
-//     res.status(201).json(result);
-//   } catch (err) {
-//     res.status(500).json({ error: 'Failed to create live session' });
-//   }
-// });
-
-// app.get('/live-sessions', async (req, res) => {
-//   try {
-//     const sessions = await db.collection('live-sessions').find().toArray();
-//     res.json(sessions);
-//   } catch (err) {
-//     res.status(500).json({ error: 'Failed to get sessions' });
-//   }
-// });
-
-app.put('/live-sessions/:id', async (req, res) => {
+// ----------------------- Dashboard Endpoints -----------------------
+app.get("/dashboard/user", requireAuth, async (req, res) => {
   try {
-    const result = await db.collection('live-sessions').findOneAndUpdate(
-      { session_id: req.params.id },
-      { $set: req.body },
-      { returnDocument: 'after' }
-    );
-    result.value
-      ? res.json(result.value)
-      : res.status(404).json({ message: 'Session not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update session' });
-  }
-});
-
-app.delete('/live-sessions/:id', async (req, res) => {
-  try {
-    const result = await db.collection('live-sessions').deleteOne({ session_id: req.params.id });
-    result.deletedCount
-      ? res.json({ message: 'Session deleted' })
-      : res.status(404).json({ message: 'Session not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to delete session' });
-  }
-});
-
-// === MATERIAL BOOKS ===
-app.post('/material-books', async (req, res) => {
-  try {
-    const book = req.body;
-    const result = await db.collection('material-books').insertOne(book);
-    res.status(201).json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to create book' });
-  }
-});
-
-app.get('/material-books', async (req, res) => {
-  try {
-    const books = await db.collection('material-books').find().toArray();
-    res.json(books);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to get books' });
-  }
-});
-
-app.put('/material-books/:id', async (req, res) => {
-  try {
-    const result = await db.collection('material-books').findOneAndUpdate(
-      { book_id: req.params.id },
-      { $set: req.body },
-      { returnDocument: 'after' }
-    );
-    result.value
-      ? res.json(result.value)
-      : res.status(404).json({ message: 'Book not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update book' });
-  }
-});
-
-app.delete('/material-books/:id', async (req, res) => {
-  try {
-    const result = await db.collection('material-books').deleteOne({ book_id: req.params.id });
-    result.deletedCount
-      ? res.json({ message: 'Book deleted' })
-      : res.status(404).json({ message: 'Book not found' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to delete book' });
-  }
-});
-
-
-app.get('/dashboard/user/:email', async (req, res) => {
-  try {
-    const email = req.params.email;
-
-    // Fetch base user
-    const user = await db.collection('Users').findOne({ email });
+    const user = await db.collection("Users").findOne({ uid: req.user.uid });
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
 
-    // Fetch related data
-    const orders = await db.collection('order-summary').find({ userEmail: email }).toArray();
-    const courses = await db.collection('material-courses').find().toArray();
-    const posts = await db.collection('forum-posts').find({ userEmail: email }).toArray();
-    const replies = await db.collection('forum-replies').find({ userEmail: email }).toArray();
+    const orders = await db.collection("order-summary").find({ uid: req.user.uid }).toArray();
+    const courses = await db.collection("material-courses").find().toArray();
+    const posts = await db.collection("forum-posts").find({ uid: req.user.uid }).toArray();
+    const replies = await db.collection("forum-replies").find({ uid: req.user.uid }).toArray();
 
     // Calculate progress
     const totalCourses = orders.reduce((sum, o) => sum + (o.items?.length || 0), 0);
@@ -1049,13 +1013,15 @@ app.get('/dashboard/user/:email', async (req, res) => {
 
     res.json({
       user: {
+        uid: user.uid,
         email: user.email,
-        joined_date: user.joined_date
+        name: user.name,
+        joinedDate: user.createdAt
       },
       progress,
       achievements,
       recentActivity: activity,
-      enrolledCourses: courses.slice(0, 3), // basic recommendation
+      enrolledCourses: courses.slice(0, 3),
       studyStreak: user.studyStreak || 0,
       weeklyGoals: user.weeklyGoals || { studyHours: { current: 0, target: 5 } }
     });
@@ -1064,19 +1030,21 @@ app.get('/dashboard/user/:email', async (req, res) => {
     console.error("User dashboard error:", err);
     res.status(500).json({ error: "Failed to fetch user dashboard" });
   }
-}); app.get('/dashboard/admin', async (req, res) => {
+});
+
+app.get("/dashboard/admin", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const users = await db.collection('Users').find().toArray();
-    const courses = await db.collection('material-courses').find().toArray();
-    const orders = await db.collection('order-summary').find().toArray();
-    const transactions = await db.collection('transactions').find().toArray();
-    const reviews = await db.collection('reviews').find().toArray();
+    const users = await db.collection("Users").find().toArray();
+    const courses = await db.collection("material-courses").find().toArray();
+    const orders = await db.collection("order-summary").find().toArray();
+    const transactions = await db.collection("transactions").find().toArray();
+    const reviews = await db.collection("reviews").find().toArray();
 
     // Stats
     const totalUsers = users.length;
     const revenue = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-    const completionRate = orders.length ? Math.round((orders.filter(o => o.status === 'Completed').length / orders.length) * 100) : 0;
-    const avgRating = reviews.length ? Math.round(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) : 0;
+    const completionRate = orders.length ? Math.round((orders.filter(o => o.status === "Completed").length / orders.length) * 100) : 0;
+    const avgRating = reviews.length ? Math.round(reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) : 0;
 
     // Top performers
     const userStats = {};
@@ -1090,7 +1058,7 @@ app.get('/dashboard/user/:email', async (req, res) => {
       stats: { totalUsers, revenue, completionRate, avgRating, courses: courses.length },
       topPerformers,
       recentOrders: orders.slice(-10).reverse(),
-      systemAlerts: [] // You can add checks here like failed transactions, growth spikes etc.
+      systemAlerts: []
     });
   } catch (err) {
     console.error("Admin dashboard error:", err);
@@ -1098,11 +1066,90 @@ app.get('/dashboard/user/:email', async (req, res) => {
   }
 });
 
+// ----------------------- Paystack Integration -----------------------
+app.post("/api/paystack/initialize", requireAuth, async (req, res) => {
+  if (!paystack) return res.status(501).json({ error: "Paystack not configured" });
+  try {
+    const { email, amount } = req.body;
+    const response = await paystack.transaction.initialize({
+      email: email || req.user.email,
+      amount: Math.round((amount || 0) * 100),
+      currency: "ZAR",
+      metadata: {
+        uid: req.user.uid,
+        userEmail: req.user.email
+      }
+    });
+    res.json(response);
+  } catch (err) {
+    console.error("Paystack init error:", err);
+    res.status(500).json({ error: "Payment initialization failed" });
+  }
+});
 
+app.get("/api/verify-payment/:reference", requireAuth, async (req, res) => {
+  if (!paystack) return res.status(501).json({ error: "Paystack not configured" });
+  try {
+    const response = await paystack.transaction.verify(req.params.reference);
+    if (response.data && response.data.status === "success") {
+      const transaction = {
+        payment_id: response.data.reference,
+        email: response.data.customer.email,
+        amount: response.data.amount / 100,
+        status: response.data.status,
+        uid: req.user.uid,
+        userEmail: req.user.email,
+        created_at: new Date(),
+        gateway_response: response.data.gateway_response,
+      };
+      await db.collection("transactions").insertOne(transaction);
+      res.json({ status: "success", data: response.data });
+    } else {
+      res.json({ status: "failed", message: "Payment verification failed" });
+    }
+  } catch (err) {
+    console.error("Payment verification error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
 
+// Paystack webhook (no auth - Paystack will call this)
+app.post("/api/paystack/callback", async (req, res) => {
+  try {
+    const event = req.body;
+    if (event.event === "charge.success") {
+      const reference = event.data.reference;
+      if (paystack) {
+        const response = await paystack.transaction.verify(reference);
+        if (response.data && response.data.status === "success") {
+          const transaction = {
+            payment_id: response.data.reference,
+            email: response.data.customer.email,
+            amount: response.data.amount / 100,
+            status: response.data.status,
+            created_at: new Date(),
+            gateway_response: response.data.gateway_response,
+          };
+          await db.collection("transactions").insertOne(transaction);
+        }
+      }
+    }
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("Callback error:", err);
+    res.sendStatus(500);
+  }
+});
 
+// ----------------------- Error Handling -----------------------
+app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ error: "Internal server error" });
+});
 
+// ----------------------- Server Start -----------------------
 app.listen(PORT, () => {
   console.log(`Server running at http://${Base_API}:${PORT}`);
 });

@@ -16,9 +16,10 @@
     "axios": "^1.11.0",
     "base-64": "^1.0.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.0",
+    "dotenv": "^17.2.2",
     "express": "^5.1.0",
-    "mongodb": "^6.18.0",
+    "firebase-admin": "^13.5.0",
+    "mongodb": "^6.20.0",
     "multer": "^2.0.2",
     "paystack-api": "^2.0.6"
   },
