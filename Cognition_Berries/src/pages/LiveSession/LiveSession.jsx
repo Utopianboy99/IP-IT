@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './LiveSession.css';
-import { getAuthHeader } from '../../utils/auth';
+import { getAuthHeader } from '../../utils/auth'
 import Navbar from '../../components/Navbar/Navbar';
 import Footer from '../../components/Footer/Footer';
 
