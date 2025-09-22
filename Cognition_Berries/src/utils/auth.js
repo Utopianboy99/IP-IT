@@ -1,4 +1,4 @@
-import { getAuth } from "firebase/auth";
+import { getAuth } from "firebase-admin/auth";
 
 async function getToken() {
   const auth = getAuth();
