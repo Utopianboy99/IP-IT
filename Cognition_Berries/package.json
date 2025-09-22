@@ -17,6 +17,7 @@
     "@heroui/theme": "^2.4.20",
     "@mui/material": "^7.2.0",
     "@mui/styled-engine-sc": "^7.2.0",
+    "firebase-admin": "^13.5.0",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.542.0",
     "motion": "^12.23.12",

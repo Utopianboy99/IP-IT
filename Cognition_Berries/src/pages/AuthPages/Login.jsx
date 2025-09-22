@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AuthPages.css';
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 const LoginPage = () => {
-  const BaseAPI = import.meta.env.VITE_BASE_API
+  const auth = getAuth();
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState({
     email: '',
     password: ''
   });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = e => {
     setCredentials(prev => ({
@@ -19,37 +21,58 @@ const LoginPage = () => {
 
   const handleSubmit = async e => {
     e.preventDefault();
+    setLoading(true);
 
     try {
-      const res = await fetch(`http://${BaseAPI}:3000/users/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials)
-      });
+      // Sign in with Firebase
+      const userCredential = await signInWithEmailAndPassword(
+        auth, 
+        credentials.email, 
+        credentials.password
+      );
+      
+      // Get the Firebase ID token
+      const idToken = await userCredential.user.getIdToken();
+      
+      // Store the token for API calls
+      localStorage.setItem("authToken", idToken);
+      localStorage.setItem("user", JSON.stringify({
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        name: userCredential.user.displayName || credentials.email
+      }));
 
-      const data = await res.json();
-      if (res.ok) {
-        // Build Basic Auth header
-        const authHeader = "Basic " + btoa(`${credentials.email}:${credentials.password}`);
-
-        // Save for dashboards
-        localStorage.setItem("auth", authHeader);
-        localStorage.setItem("user", JSON.stringify({ email: credentials.email }));
-
-        alert(`Hey Welcome Back ${credentials.email}`);
-        navigate("/home");
+      alert(`Hey Welcome Back ${credentials.email}`);
+      navigate("/home");
+      
+    } catch (error) {
+      console.error("Login error:", error);
+      
+      // Handle specific Firebase auth errors
+      let errorMessage = "Login failed. Please try again.";
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = "No account found with this email address.";
+          break;
+        case 'auth/wrong-password':
+          errorMessage = "Invalid password.";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "Invalid email address.";
+          break;
+        case 'auth/user-disabled':
+          errorMessage = "This account has been disabled.";
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = "Too many failed login attempts. Please try again later.";
+          break;
       }
-      else {
-        alert(data.message || 'Login failed.');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Server error.');
+      
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
-
 
   return (
     <div className="auth-split">
@@ -59,9 +82,25 @@ const LoginPage = () => {
       </div>
       <div className="right-pane">
         <form className="auth-form" onSubmit={handleSubmit}>
-          <input type="email" name="email" placeholder="Email address" onChange={handleChange} required />
-          <input type="password" name="password" placeholder="Password" onChange={handleChange} required />
-          <button type="submit">Login</button>
+          <input 
+            type="email" 
+            name="email" 
+            placeholder="Email address" 
+            value={credentials.email}
+            onChange={handleChange} 
+            required 
+          />
+          <input 
+            type="password" 
+            name="password" 
+            placeholder="Password" 
+            value={credentials.password}
+            onChange={handleChange} 
+            required 
+          />
+          <button type="submit" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
+          </button>
           <p>Don't have an account? <a href="/signup">Sign up</a></p>
         </form>
       </div>

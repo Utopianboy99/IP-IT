@@ -11,32 +11,31 @@ function CoursesPage() {
   const [loading, setLoading] = useState(false);
   const [showPriceDropdown, setShowPriceDropdown] = useState(false);
   const [selectedPrice, setSelectedPrice] = useState("");
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [selectedLevel, setSelectedLevel] = useState("All Levels");
 
+  // Helper function to get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      console.error("No auth token found");
+      return null;
+    }
+    return {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    };
+  };
 
   useEffect(() => {
-    const BaseAPI = import.meta.env.VITE_BASE_API
+    const BaseAPI = import.meta.env.VITE_BASE_API;
+    
     const fetchCourses = async () => {
       setLoading(true);
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
-        if (!user) {
-          console.error("No user found in localStorage");
-          setCourses([]);
-          return;
-        }
-
-        // Build Basic Auth header
-        const authHeader = "Basic " + btoa(`${user.email}:${user.password}`);
-
-        const res = await fetch(`http://${BaseAPI}t:3000/courses`, {
-          headers: {
-            Authorization: authHeader,
-          },
-        });
+        // Note: Courses endpoint is public in the updated server, no auth needed
+        const res = await fetch(`http://${BaseAPI}:3000/courses`);
 
         if (!res.ok) {
           console.error("Failed to fetch courses:", res.status);
@@ -45,7 +44,6 @@ function CoursesPage() {
         }
 
         const data = await res.json();
-        // backend returns an array, not { courses: [] }
         setCourses(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error fetching courses:", error);
@@ -94,7 +92,7 @@ function CoursesPage() {
       return true;
     });
 
-  // --- sorting logic stays the same ---
+  // Sorting logic
   const sortedCourses = [...filteredCourses].sort((a, b) => {
     if (filters === "popular") {
       return (b.rating || 0) - (a.rating || 0);
@@ -111,13 +109,10 @@ function CoursesPage() {
     return 0;
   });
 
-
-
   return (
     <>
       <Navbar />
       <div className="part1">
-
         <h1>Our Courses</h1>
         <p>
           Explore our diverse range of courses designed to enhance your financial
@@ -125,7 +120,6 @@ function CoursesPage() {
         </p>
       </div>
       <div className="part2">
-
         <h2>
           Explore Our Comprehensive Range of Financial Literacy Courses Tailored
           for You
