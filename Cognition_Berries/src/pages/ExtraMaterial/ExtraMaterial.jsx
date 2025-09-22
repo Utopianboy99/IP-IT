@@ -6,26 +6,27 @@ import "./ExtraMaterial.css";
 function ExtraMaterial() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
-  const BaseAPI = import.meta.env.VITE_BASE_API
+  const BaseAPI = import.meta.env.VITE_BASE_API;
+
+  // Helper function to get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("authToken");
+    if (!token) {
+      console.error("No auth token found");
+      return null;
+    }
+    return {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    };
+  };
 
   useEffect(() => {
     const fetchBooks = async () => {
       setLoading(true);
       try {
-        const user = JSON.parse(localStorage.getItem("user"));
-        if (!user) {
-          console.error("No user found in localStorage");
-          setBooks([]);
-          return;
-        }
-
-        const authHeader = "Basic " + btoa(`${user.email}:${user.password}`);
-
-        const res = await fetch(`http://${BaseAPI}:3000/material-books`, {
-          headers: {
-            Authorization: authHeader,
-          },
-        });
+        // Note: material-books endpoint is public in the updated server, no auth needed
+        const res = await fetch(`http://${BaseAPI}:3000/material-books`);
 
         if (!res.ok) {
           console.error("Failed to fetch books:", res.status);
@@ -47,66 +48,92 @@ function ExtraMaterial() {
   }, []);
 
   const addToCart = async (book) => {
-  try {
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (!user) {
-      alert("Please log in to add items to cart");
-      return;
-    }
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) {
+        alert("Please log in to add items to cart");
+        return;
+      }
 
-    const authHeader = "Basic " + btoa(`${user.email}:${user.password}`);
-
-    // 1. Get current cart for this user
-    const response = await fetch(`http://${BaseAPI}:3000/cart/${user.email}`, {
-      headers: { Authorization: authHeader }
-    });
-    const currentCart = response.ok ? await response.json() : [];
-
-    const existingItem = currentCart.find(item => item.title === book.title);
-
-    if (existingItem) {
-      // Update quantity
-      const res = await fetch(`http://${BaseAPI}:3000/cart/${existingItem._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: authHeader,
-        },
-        body: JSON.stringify({
-          quantity: (existingItem.quantity || 1) + 1
-        }),
+      // First, get current cart items to check for duplicates
+      const cartResponse = await fetch(`http://${BaseAPI}:3000/cart`, {
+        headers
       });
 
-      if (!res.ok) throw new Error("Failed to update cart item");
-      alert(`${book.title} quantity updated in cart!`);
+      if (cartResponse.status === 401) {
+        alert("Your session has expired. Please log in again.");
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+        return;
+      }
 
-    } else {
-      // Add new item (with quantity: 1)
-      const res = await fetch(`http://${BaseAPI}:3000/cart`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: authHeader,
-        },
-        body: JSON.stringify({
-          userEmail: user.email,
-          title: book.title,
-          price: book.price,
-          author: book.author,
-          description: book.description,
-          quantity: 1,
-        }),
-      });
+      let currentCart = [];
+      if (cartResponse.ok) {
+        currentCart = await cartResponse.json();
+      }
 
-      if (!res.ok) throw new Error("Failed to add item to cart");
-      alert(`${book.title} added to cart!`);
+      // Check if item already exists in cart
+      const existingItem = currentCart.find(item => item.title === book.title);
+
+      if (existingItem) {
+        // Update quantity of existing item
+        const updateResponse = await fetch(`http://${BaseAPI}:3000/cart/${existingItem._id}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            quantity: (existingItem.quantity || 1) + 1
+          }),
+        });
+
+        if (updateResponse.status === 401) {
+          alert("Your session has expired. Please log in again.");
+          localStorage.removeItem("authToken");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+          return;
+        }
+
+        if (!updateResponse.ok) {
+          throw new Error("Failed to update cart item");
+        }
+
+        alert(`${book.title} quantity updated in cart!`);
+      } else {
+        // Add new item to cart
+        const addResponse = await fetch(`http://${BaseAPI}:3000/cart`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            title: book.title,
+            price: book.price,
+            author: book.author,
+            description: book.description,
+            quantity: 1,
+            productId: book._id || book.book_id
+          }),
+        });
+
+        if (addResponse.status === 401) {
+          alert("Your session has expired. Please log in again.");
+          localStorage.removeItem("authToken");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+          return;
+        }
+
+        if (!addResponse.ok) {
+          const errorData = await addResponse.json();
+          throw new Error(errorData.error || "Failed to add item to cart");
+        }
+
+        alert(`${book.title} added to cart!`);
+      }
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+      alert(`Error adding item to cart: ${err.message}`);
     }
-  } catch (err) {
-    console.error("Error adding to cart:", err);
-    alert("Error adding item to cart. Please try again.");
-  }
-};
-
+  };
 
   return (
     <>
@@ -121,10 +148,11 @@ function ExtraMaterial() {
         ) : (
           <div className="books-grid">
             {books.map((book) => (
-              <div key={book._id} className="book-card">
+              <div key={book._id || book.book_id} className="book-card">
                 <img src='./Books.png' alt={book.title} />
                 <h3>{book.title}</h3>
                 <p>{book.description}</p>
+                <p className="author">By: {book.author}</p>
                 <p className="price">R{book.price}</p>
                 <button onClick={() => addToCart(book)}>Add to Cart</button>
               </div>

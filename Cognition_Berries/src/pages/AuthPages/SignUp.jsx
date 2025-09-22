@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import './AuthPages.css';
 import { useNavigate } from 'react-router-dom';
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 
 const SignupPage = () => {
-  const Base_API = import.meta.env.VITE_BASE_API
+  const auth = getAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: ''
   });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = e => {
     setFormData(prev => ({
@@ -20,37 +22,60 @@ const SignupPage = () => {
 
   const handleSubmit = async e => {
     e.preventDefault();
+    setLoading(true);
 
     try {
-      const res = await fetch(`http://${Base_API}:3000/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
+      // Create user with Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth, 
+        formData.email, 
+        formData.password
+      );
+
+      // Update the user's display name
+      await updateProfile(userCredential.user, {
+        displayName: formData.name
       });
 
-      const data = await res.json();
-      if (res.ok) {
-        // Build Basic Auth header from signup form
-        const authHeader = "Basic " + btoa(`${formData.email}:${formData.password}`);
+      // Get the Firebase ID token
+      const idToken = await userCredential.user.getIdToken();
 
-        // Save for dashboards
-        localStorage.setItem("auth", authHeader);
-        localStorage.setItem("user", JSON.stringify({ email: formData.email }));
+      // Store auth data
+      localStorage.setItem("authToken", idToken);
+      localStorage.setItem("user", JSON.stringify({
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        name: formData.name
+      }));
 
-        alert("Signup successful!");
-        navigate("/home");
+      alert("Signup successful!");
+      navigate("/home");
+      
+    } catch (error) {
+      console.error("Signup error:", error);
+      
+      // Handle specific Firebase auth errors
+      let errorMessage = "Signup failed. Please try again.";
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = "An account with this email already exists.";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "Invalid email address.";
+          break;
+        case 'auth/weak-password':
+          errorMessage = "Password should be at least 6 characters.";
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage = "Email/password accounts are not enabled.";
+          break;
       }
-      else {
-        alert(data.message || 'Signup failed.');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Server error.');
+      
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
-
 
   return (
     <div className="auth-split">
@@ -83,8 +108,11 @@ const SignupPage = () => {
             value={formData.password}
             onChange={handleChange}
             required
+            minLength={6}
           />
-          <button type="submit">Sign Up</button>
+          <button type="submit" disabled={loading}>
+            {loading ? "Creating account..." : "Sign Up"}
+          </button>
           <p>Already have an account? <a href="/login">Login</a></p>
         </form>
       </div>
