@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './AuthPages.css';
 import { useNavigate } from 'react-router-dom';
-import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase-admin/auth'
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 
 const SignupPage = () => {
   const auth = getAuth();
