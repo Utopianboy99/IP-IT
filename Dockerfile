@@ -1,4 +1,4 @@
-# Dockerfile - Backend
+# Backend Dockerfile
 FROM node:18-alpine
 
 WORKDIR /app
@@ -7,18 +7,18 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy application code
+# Copy application source
 COPY . .
 
-# Create uploads directory
+# Ensure uploads folder exists
 RUN mkdir -p uploads
 
-# Expose port
+# Expose backend port
 EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start server
+# Start the server
 CMD ["node", "server.js"]
