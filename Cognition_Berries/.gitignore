@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Logs
 logs
 *.log
@@ -8,10 +8,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build
 dist
 dist-ssr
+
+# Environment variables
+.env
+.env.*
+*.env
 *.local
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -23,12 +32,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-*.env
+
+# Cypress
 *cypress
-=======
-.env
-node_modules
+
+# Sensitive files
+*.pem
 Sanje-key.pem
-gnition-berries-firebase-adminsdk-fbsvc-74466cd3b4.json
 firebase-service-account.json
->>>>>>> 681a4c8c1999a846bc06eb2980501a4bca050f01
+*firebase-adminsdk*.json

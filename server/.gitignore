@@ -24,4 +24,27 @@ node_modules
 *.sln
 *.sw?
 *.env
+.env
 *cypress
+
+
+# Dependencies
+node_modules
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Firebase credentials
+firebase-service-account.json
+*firebase-adminsdk*.json
+
+# Private keys
+*.pem
+*.key
+
+# Logs
+logs
+*.log
+npm-debug.log*
